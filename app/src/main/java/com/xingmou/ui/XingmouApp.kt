@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -22,8 +25,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -59,6 +64,15 @@ fun XingmouApp(viewModel: XingmouViewModel) {
     val fontScale = if (state.accessibility.largeText) 1.15f else 1.0f
     CompositionLocalProvider(LocalDensity provides androidx.compose.ui.unit.Density(density.density, fontScale)) {
         XingmouTheme(highContrast = state.accessibility.highContrast) {
+            if (!state.isLoggedIn) {
+                IdentityLoginScreen(
+                    state = state,
+                    onSelectRole = viewModel::selectLoginRole,
+                    onIdentifierChange = viewModel::updateLoginIdentifier,
+                    onLogin = { state.loginRole?.let(viewModel::loginAs) }
+                )
+                return@XingmouTheme
+            }
             Scaffold(
                 containerColor = MaterialTheme.colorScheme.background,
                 topBar = {
@@ -85,22 +99,86 @@ fun XingmouApp(viewModel: XingmouViewModel) {
                         ,onSaveLocalOrganization = viewModel::saveLocalOrganization,
                         onCreateLocalRoleUser = viewModel::createLocalRoleUser,
                         onUpdateLocalRoleUser = viewModel::updateLocalRoleUser
+                        ,onLogout = viewModel::logout
                     )
                 },
                 bottomBar = { AppStatusBand(aiConfigured = state.aiConfigured, remoteAiConsent = state.remoteAiConsent) }
             ) { padding ->
-                BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
-                    if (maxWidth >= 840.dp) {
-                        Row(Modifier.fillMaxSize()) {
-                            PortRail(state.selectedPort, viewModel::selectPort)
-                            PortContent(viewModel, state.selectedPort, Modifier.weight(1f))
-                        }
-                    } else {
-                        Column(Modifier.fillMaxSize()) {
-                            CompactPortSelector(state.selectedPort, viewModel::selectPort)
-                            PortContent(viewModel, state.selectedPort, Modifier.weight(1f))
+                PortContent(viewModel, state.selectedPort, Modifier.fillMaxSize().padding(padding))
+            }
+        }
+    }
+}
+
+@Composable
+private fun IdentityLoginScreen(
+    state: com.xingmou.XingmouUiState,
+    onSelectRole: (Port) -> Unit,
+    onIdentifierChange: (String) -> Unit,
+    onLogin: () -> Unit
+) {
+    val roles = listOf(
+        Triple(Port.CHILD, "★", "儿童"),
+        Triple(Port.PARENT, "♥", "家长"),
+        Triple(Port.PROFESSIONAL, "+", "康复专业人员")
+    )
+    Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 36.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                modifier = Modifier.size(76.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                BoxWithConstraints(contentAlignment = Alignment.Center) {
+                    Text("星", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Text("星眸", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 10.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(top = 22.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("选择登录身份", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        roles.forEach { (port, glyph, label) ->
+                            val selected = state.loginRole == port
+                            Surface(
+                                onClick = { onSelectRole(port) },
+                                modifier = Modifier.weight(1f).height(84.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(if (selected) 2.dp else 1.dp,
+                                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                    Text(glyph, style = MaterialTheme.typography.titleLarge)
+                                    Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
                         }
                     }
+                    OutlinedTextField(
+                        value = state.loginIdentifier,
+                        onValueChange = onIdentifierChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("本机账号标识") },
+                        placeholder = { Text("输入本地用户登录标识") },
+                        singleLine = true
+                    )
+                    Text("当前为纯前端本机身份选择，不连接服务器，也不提供跨设备账号认证。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = onLogin, enabled = state.loginRole != null && state.loginIdentifier.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                        Text("进入${state.loginRole?.let(::portLabel) ?: "所选端"}")
+                    }
+                    Text(state.loginMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    Text("${state.organizationName} · 本机数据", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.CenterHorizontally))
                 }
             }
         }
@@ -127,6 +205,7 @@ private fun ChildContextBar(
     ,onSaveLocalOrganization: (String, String, String) -> Unit,
     onCreateLocalRoleUser: (String, String, String) -> Unit,
     onUpdateLocalRoleUser: (String, String, String, Boolean) -> Unit
+    ,onLogout: () -> Unit
 ) {
     val expandedState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val dialogMode = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
@@ -150,14 +229,19 @@ private fun ChildContextBar(
         ) {
             Text("当前儿童：${state.activeChildAlias}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             TextButton(onClick = { expandedState.value = true }, enabled = state.availableChildren.isNotEmpty()) { Text("切换档案") }
-            TextButton(onClick = { aliasState.value = ""; ageBandState.value = "学龄期"; dialogMode.value = "create" }) { Text("新建") }
-            TextButton(onClick = { dialogMode.value = "edit" }) { Text("编辑") }
-            TextButton(onClick = onArchiveChild, enabled = state.availableChildren.size > 1) { Text("归档") }
-            TextButton(onClick = { consentOpen.value = true }) { Text("授权") }
+            if (state.selectedPort != Port.CHILD) {
+                TextButton(onClick = { aliasState.value = ""; ageBandState.value = "学龄期"; dialogMode.value = "create" }) { Text("新建") }
+                TextButton(onClick = { dialogMode.value = "edit" }) { Text("编辑") }
+            }
             if (state.selectedPort == Port.PROFESSIONAL) {
+                TextButton(onClick = onArchiveChild, enabled = state.availableChildren.size > 1) { Text("归档") }
+                TextButton(onClick = { consentOpen.value = true }) { Text("授权") }
                 TextButton(onClick = { institutionOpen.value = true }) { Text("机构设置") }
                 TextButton(onClick = { apiKeyInput.value = ""; apiKeyOpen.value = true }) { Text("机构 API Key") }
+            } else if (state.selectedPort == Port.PARENT) {
+                TextButton(onClick = { consentOpen.value = true }) { Text("授权") }
             }
+            TextButton(onClick = onLogout) { Text("退出当前端") }
             DropdownMenu(expanded = expandedState.value, onDismissRequest = { expandedState.value = false }) {
                 state.availableChildren.forEach { child ->
                     DropdownMenuItem(

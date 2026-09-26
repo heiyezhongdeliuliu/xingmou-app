@@ -636,6 +636,53 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
         if (port == Port.PROFESSIONAL) refreshProfessionalAnalysis()
     }
 
+    fun updateLoginIdentifier(value: String) {
+        _uiState.update { it.copy(loginIdentifier = value.take(80), loginMessage = "") }
+    }
+
+    fun updateLoginPassword(value: String) {
+        _uiState.update { it.copy(loginPassword = value.take(128), loginMessage = "") }
+    }
+
+    fun selectLoginRole(port: Port) {
+        _uiState.update { it.copy(loginRole = port, loginMessage = "") }
+    }
+
+    fun loginAs(port: Port) {
+        val state = _uiState.value
+        val identifier = state.loginIdentifier.trim()
+        if (identifier.isBlank()) {
+            _uiState.update { it.copy(loginMessage = "请输入登录标识。") }
+            return
+        }
+        viewModelScope.launch {
+            val users = database.localUserDao().activeForOrganization(SeedData.DEMO_ORGANIZATION_ID)
+            val user = users.firstOrNull { it.login.equals(identifier, ignoreCase = true) }
+            val allowedRole = when (port) {
+                Port.CHILD -> setOf("admin", "professional", "parent")
+                Port.PARENT -> setOf("admin", "professional", "parent")
+                Port.PROFESSIONAL -> setOf("admin", "professional")
+            }
+            if (user == null || user.role !in allowedRole) {
+                val label = when (port) { Port.CHILD -> "儿童端"; Port.PARENT -> "家长端"; Port.PROFESSIONAL -> "康复专业人员端" }
+                _uiState.update { it.copy(loginMessage = "当前登录标识无权进入$label。") }
+                return@launch
+            }
+            database.localSessionDao().revokeAllActive()
+            database.localSessionDao().upsert(LocalSessionEntity(newId("session"), user.userId, user.role, createdAt = System.currentTimeMillis(), expiresAt = null))
+            _uiState.update { it.copy(isLoggedIn = true, loginRole = port, selectedPort = port,
+                localUserName = user.displayName, localUserRole = user.role,
+                loginPassword = "", loginMessage = "") }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            database.localSessionDao().revokeAllActive()
+            _uiState.update { it.copy(isLoggedIn = false, loginRole = null, loginPassword = "", loginMessage = "请选择登录身份。") }
+        }
+    }
+
     fun setSpeechEnabled(enabled: Boolean) {
         accessibilityPreferences.edit().putBoolean("speech_enabled", enabled).apply()
         _uiState.update { it.copy(accessibility = it.accessibility.copy(speechEnabled = enabled)) }

@@ -13,6 +13,11 @@ import com.xingmou.core.model.Port
 import com.xingmou.core.model.SupportLevel
 
 data class XingmouUiState(
+    val isLoggedIn: Boolean = false,
+    val loginRole: Port? = null,
+    val loginIdentifier: String = "",
+    val loginPassword: String = "",
+    val loginMessage: String = "请选择登录身份。",
     val selectedPort: Port = Port.CHILD,
     val activeChildId: String = "child-seed",
     val activeChildAlias: String = "小星",

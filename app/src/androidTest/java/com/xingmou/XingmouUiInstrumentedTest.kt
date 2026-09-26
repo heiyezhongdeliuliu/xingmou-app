@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Before
@@ -28,6 +29,23 @@ class XingmouUiInstrumentedTest {
             .edit()
             .clear()
             .commit()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithText("选择登录身份").fetchSemanticsNodes().isNotEmpty()
+        }
+        loginAs("儿童")
+    }
+
+    private fun loginAs(label: String) {
+        composeRule.onNodeWithText(label).performClick()
+        composeRule.onNodeWithText("本机账号标识").performTextInput(when (label) { "家长" -> "parent"; "儿童" -> "child"; else -> "professional" })
+        composeRule.onNodeWithText("进入${when (label) { "儿童" -> "儿童端"; "家长" -> "家长端"; else -> "康复专业人员端" }}").performClick()
+        composeRule.waitForIdle()
+    }
+
+    private fun logoutAndLoginAs(label: String) {
+        composeRule.onNodeWithText("退出当前端").performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithText("选择登录身份").fetchSemanticsNodes().isNotEmpty() }
+        loginAs(label)
     }
 
     @Test
@@ -46,7 +64,6 @@ class XingmouUiInstrumentedTest {
 
     @Test
     fun baselineEntryIsReachable() {
-        composeRule.onNodeWithText("儿童端").performClick()
         composeRule.onNodeWithText("六题起点小测").performScrollTo().assertIsDisplayed()
         val hasStart = composeRule.onAllNodesWithContentDescription("开始六题起点小测").fetchSemanticsNodes().isNotEmpty()
         val hasResume = composeRule.onAllNodesWithContentDescription("继续六题起点小测").fetchSemanticsNodes().isNotEmpty()
@@ -102,7 +119,7 @@ class XingmouUiInstrumentedTest {
 
     @Test
     fun institutionApiKeySettingsAreReachableFromProfessionalPort() {
-        composeRule.onNodeWithText("专业端").performClick()
+        logoutAndLoginAs("康复专业人员")
         composeRule.onNodeWithText("机构 API Key").performClick()
         composeRule.onNodeWithText("API Key 设置").assertIsDisplayed()
         composeRule.onNodeWithText("DeepSeek API Key").assertIsDisplayed()
@@ -111,7 +128,7 @@ class XingmouUiInstrumentedTest {
 
     @Test
     fun localOrganizationAndRoleSettingsAreReachable() {
-        composeRule.onNodeWithText("专业端").performClick()
+        logoutAndLoginAs("康复专业人员")
         composeRule.onNodeWithText("机构设置").performClick()
         composeRule.onNodeWithText("本地机构与角色").assertIsDisplayed()
         composeRule.onNodeWithText("机构名称").assertIsDisplayed()
@@ -121,7 +138,7 @@ class XingmouUiInstrumentedTest {
 
     @Test
     fun agentAuditReplayEntryIsReachable() {
-        composeRule.onNodeWithText("专业端").performClick()
+        logoutAndLoginAs("康复专业人员")
         composeRule.onNodeWithText("审计回放").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("刷新当前儿童运行记录").performClick()
         composeRule.onNodeWithText("审计回放").assertIsDisplayed()
@@ -129,13 +146,13 @@ class XingmouUiInstrumentedTest {
 
     @Test
     fun allPortsAreReachable() {
-        composeRule.onNodeWithText("家长端").performClick()
+        logoutAndLoginAs("家长")
         composeRule.onNodeWithText("家庭观察与支持").assertIsDisplayed()
         composeRule.onNodeWithText("今日家庭任务").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("本周家庭回顾").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("5 分钟陪练示范").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("保存今天的观察").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("专业端").performClick()
+        logoutAndLoginAs("康复专业人员")
         composeRule.onNodeWithText("专业审核工作台").assertIsDisplayed()
         composeRule.onNodeWithText("训练报表").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("分段正确率趋势").performScrollTo().assertIsDisplayed()
@@ -154,18 +171,18 @@ class XingmouUiInstrumentedTest {
         composeRule.onNodeWithText("阶段备注").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("签署并推进到下一阶段").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("家庭反馈").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("儿童端").performClick()
+        logoutAndLoginAs("儿童")
         composeRule.onNodeWithText("和小星一起练习").assertIsDisplayed()
     }
 
     @Test
     fun parentFeedbackAppearsOnProfessionalTimelineAfterRefresh() {
-        composeRule.onNodeWithText("家长端").performClick()
+        logoutAndLoginAs("家长")
         composeRule.onNodeWithText("保存今天的观察").performScrollTo().performClick()
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodesWithText("观察已保存到当前儿童档案。", substring = true).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("专业端").performClick()
+        logoutAndLoginAs("康复专业人员")
         composeRule.onNodeWithText("刷新本地记录").performScrollTo().performClick()
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodesWithText("心情：平稳", substring = true).fetchSemanticsNodes().isNotEmpty()

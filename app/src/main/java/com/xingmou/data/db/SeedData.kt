@@ -27,6 +27,12 @@ object SeedData {
         updatedAt = 0L
     )
 
+    val demoRoleUsers = listOf(
+        defaultUser,
+        LocalUserEntity("local-parent", DEMO_ORGANIZATION_ID, "本地家长", "parent", "parent", createdAt = 0L, updatedAt = 0L),
+        LocalUserEntity("local-child", DEMO_ORGANIZATION_ID, "儿童体验账号", "child", "parent", createdAt = 0L, updatedAt = 0L)
+    )
+
     val defaultChild = ChildEntity(
         childId = "child-seed",
         alias = "小星",
@@ -113,7 +119,7 @@ class SeedDatabaseCallback : RoomDatabase.Callback() {
 object DatabaseSeeder {
     suspend fun seed(database: QizhiDatabase) {
         database.organizationDao().upsert(SeedData.defaultOrganization)
-        database.localUserDao().upsert(SeedData.defaultUser)
+        SeedData.demoRoleUsers.forEach { database.localUserDao().upsert(it) }
         database.childDao().upsert(SeedData.defaultChild)
         database.childBindingDao().upsert(SeedData.defaultBinding)
         database.knowledgeDao().insertAll(SeedData.knowledgeItems + SeedData.taskItems)

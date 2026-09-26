@@ -69,6 +69,7 @@ fun XingmouApp(viewModel: XingmouViewModel) {
                     state = state,
                     onSelectRole = viewModel::selectLoginRole,
                     onIdentifierChange = viewModel::updateLoginIdentifier,
+                    onPasswordChange = viewModel::updateLoginPassword,
                     onLogin = { state.loginRole?.let(viewModel::loginAs) }
                 )
                 return@XingmouTheme
@@ -115,6 +116,7 @@ private fun IdentityLoginScreen(
     state: com.xingmou.XingmouUiState,
     onSelectRole: (Port) -> Unit,
     onIdentifierChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
     onLogin: () -> Unit
 ) {
     val roles = listOf(
@@ -170,6 +172,15 @@ private fun IdentityLoginScreen(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("本机账号标识") },
                         placeholder = { Text("输入本地用户登录标识") },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = state.loginPassword,
+                        onValueChange = onPasswordChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("登录密码") },
+                        placeholder = { Text("本机演示模式可留空") },
+                        visualTransformation = PasswordVisualTransformation(),
                         singleLine = true
                     )
                     Text("当前为纯前端本机身份选择，不连接服务器，也不提供跨设备账号认证。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

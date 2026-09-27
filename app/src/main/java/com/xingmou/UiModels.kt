@@ -100,13 +100,55 @@ data class ChildUiState(
     val isPaused: Boolean = false,
     val isSafetyStopped: Boolean = false,
     val isWorking: Boolean = false,
-    val lastEvent: String = "等待开始"
+    val lastEvent: String = "等待开始",
+    val curriculumMap: CurriculumMapUi = CurriculumMapUi(),
+    val curriculumPlayer: CurriculumPlayerUi = CurriculumPlayerUi()
 )
 
 data class CourseLevelUi(
     val level: Int,
     val title: String,
     val status: String
+)
+
+/** 20 关彩虹冒险地图的关卡状态：锁定 → 可进入 → 已完成（解锁链）。 */
+enum class CurriculumLevelStatus { LOCKED, AVAILABLE, COMPLETED }
+
+data class CurriculumLevelUi(
+    val order: Int,
+    val title: String,
+    val icon: String,
+    val theme: String,
+    val difficulty: Int,
+    val status: CurriculumLevelStatus
+)
+
+/** 地图：20 关列表 + 解锁链 + 兴趣门槛（选择主题后才开放第一关）。 */
+data class CurriculumMapUi(
+    val levels: List<CurriculumLevelUi> = emptyList(),
+    val completedLevels: Int = 0,
+    val totalLevels: Int = 20,
+    val activeLevel: Int = 1,
+    val interest: String = "图片",
+    val interestOptions: List<String> = listOf("图片", "动物", "交通", "生活用品"),
+    val interestChosen: Boolean = false
+)
+
+/** 播放器：某一关内 5 个活动顺序作答；通过判定与结果均为内存态（不动 DB）。 */
+data class CurriculumPlayerUi(
+    val levelOrder: Int? = null,
+    val levelTitle: String = "",
+    val activityIndex: Int = 0,
+    val activityTotal: Int = 5,
+    val activityLabel: String = "",
+    val question: QuestionDefinition? = null,
+    val runCompleted: Int = 0,
+    val runCorrect: Int = 0,
+    val runTotal: Int = 0,
+    val isWorking: Boolean = false,
+    val message: String = "",
+    val finished: Boolean = false,
+    val passed: Boolean = false
 )
 
 val V08_COURSE_LEVELS: List<CourseLevelUi> = listOf(

@@ -40,6 +40,10 @@ import androidx.compose.ui.unit.sp
 import com.xingmou.AccessibilityUiState
 import com.xingmou.ChildUiState
 import com.xingmou.BaselineUiState
+import com.xingmou.CurriculumLevelStatus
+import com.xingmou.CurriculumLevelUi
+import com.xingmou.CurriculumMapUi
+import com.xingmou.CurriculumPlayerUi
 import com.xingmou.data.catalog.QuestionType
 import com.xingmou.core.domain.BaselineStatus
 import com.xingmou.ui.components.SectionSurface
@@ -55,15 +59,15 @@ fun ChildScreen(
     state: ChildUiState,
     baseline: BaselineUiState,
     accessibility: AccessibilityUiState,
-    onChoice: (Int) -> Unit,
     onStartBaseline: () -> Unit,
     onResumeBaseline: () -> Unit,
     onLeaveBaseline: () -> Unit,
     onRestartBaseline: () -> Unit,
     onBaselineAnswer: (Int) -> Unit,
-    onStartCourse: () -> Unit,
-    onLeaveCourse: () -> Unit,
-    onResumeCourse: () -> Unit,
+    onOpenCurriculumLevel: (Int) -> Unit,
+    onAnswerCurriculumActivity: (Int) -> Unit,
+    onLeaveCurriculumLevel: () -> Unit,
+    onChooseCurriculumInterest: (String) -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onSpeechEnabledChange: (Boolean) -> Unit,
@@ -93,6 +97,14 @@ fun ChildScreen(
     LaunchedEffect(state.courseQuestionId, state.courseQuestionType, state.courseStimulus, accessibility.speechEnabled) {
         if (accessibility.speechEnabled && state.courseQuestionType == QuestionType.AUDIO && state.courseStimulus.isNotBlank()) {
             speechController.speak(state.courseStimulus)
+        }
+    }
+    val curriculumQuestion = state.curriculumPlayer.question
+    LaunchedEffect(curriculumQuestion?.id, curriculumQuestion?.type, accessibility.speechEnabled) {
+        val q = curriculumQuestion
+        if (accessibility.speechEnabled && q != null && q.type == QuestionType.AUDIO) {
+            val text = q.stimulus.ifBlank { q.prompt }
+            if (text.isNotBlank()) speechController.speak(text)
         }
     }
     Row(modifier = modifier.fillMaxSize()) {
@@ -137,30 +149,34 @@ fun ChildScreen(
             if (selectedSection.value == ChildSection.TRAINING) {
                 BaselineCard(baseline, onStartBaseline, onResumeBaseline, onLeaveBaseline, onRestartBaseline, onBaselineAnswer)
                 if (selectedCourseLevel.value == null) {
-                    CourseProgressCard(
-                        state = state,
+                    CurriculumMapCard(
+                        map = state.curriculumMap,
+                        courseUnlocked = state.courseUnlocked,
+                        isWorking = state.isWorking,
+                        onChooseInterest = onChooseCurriculumInterest,
                         onOpenLevel = { level ->
                             selectedCourseLevel.value = level
-                            onResumeCourse()
+                            onOpenCurriculumLevel(level)
                         }
                     )
                 } else {
                     TextButton(
                         onClick = {
                             selectedCourseLevel.value = null
-                            onLeaveCourse()
+                            onLeaveCurriculumLevel()
                         },
                         modifier = Modifier.fillMaxWidth().semantics { contentDescription = "返回关卡地图" }
                     ) { Text("← 返回关卡地图") }
-                    TrainingAnswerCard(
-                        state,
-                        onChoice,
-                        onResumeCourse,
-                        onPause,
-                        onResume,
-                        onLeaveCourse = {
+                    CurriculumPlayerCard(
+                        player = state.curriculumPlayer,
+                        isPaused = state.isPaused,
+                        isSafetyStopped = state.isSafetyStopped,
+                        onAnswer = onAnswerCurriculumActivity,
+                        onPause = onPause,
+                        onResume = onResume,
+                        onLeave = {
                             selectedCourseLevel.value = null
-                            onLeaveCourse()
+                            onLeaveCurriculumLevel()
                         }
                     )
                 }
@@ -184,28 +200,31 @@ fun ChildScreen(
 }
 
 @Composable
-private fun TrainingAnswerCard(
-    state: ChildUiState,
-    onChoice: (Int) -> Unit,
-    onResumeCourse: () -> Unit,
+private fun CurriculumPlayerCard(
+    player: CurriculumPlayerUi,
+    isPaused: Boolean,
+    isSafetyStopped: Boolean,
+    onAnswer: (Int) -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
-    onLeaveCourse: () -> Unit
+    onLeave: () -> Unit
 ) {
-    val isMemoryQuestion = state.courseQuestionType == QuestionType.MEMORY
-    val isPreviewing = remember(state.courseQuestionId, state.courseQuestionType) {
-        mutableStateOf(isMemoryQuestion && state.courseStimulus.isNotBlank())
+    val question = player.question
+    val isMemoryQuestion = question?.type == QuestionType.MEMORY
+    val isPreviewing = remember(player.levelOrder, player.activityIndex, question?.id) {
+        mutableStateOf(isMemoryQuestion && question?.stimulus?.isNotBlank() == true)
     }
-    val previewRemainingMs = remember(state.courseQuestionId, state.courseQuestionType) {
-        mutableStateOf(state.coursePreviewMs.coerceAtLeast(1L))
+    val previewRemainingMs = remember(player.levelOrder, player.activityIndex, question?.id) {
+        mutableStateOf(question?.previewMs?.coerceAtLeast(1L) ?: 1L)
     }
-    LaunchedEffect(state.courseQuestionId, state.courseQuestionType, state.courseStimulus) {
-        if (!isMemoryQuestion || state.courseStimulus.isBlank()) {
+    LaunchedEffect(player.levelOrder, player.activityIndex, question?.id) {
+        val q = question ?: return@LaunchedEffect
+        if (!isMemoryQuestion || q.stimulus.isBlank()) {
             isPreviewing.value = false
             previewRemainingMs.value = 0L
             return@LaunchedEffect
         }
-        val total = state.coursePreviewMs.coerceAtLeast(1L)
+        val total = q.previewMs.coerceAtLeast(1L)
         val deadline = System.currentTimeMillis() + total
         isPreviewing.value = true
         while (true) {
@@ -219,57 +238,49 @@ private fun TrainingAnswerCard(
     }
     SectionSurface(
         title = when {
-            state.isSafetyStopped -> "先找身边的大人"
-            state.isPaused -> "休息时间"
+            isSafetyStopped -> "先找身边的大人"
+            isPaused -> "休息时间"
+            player.finished -> "这一关结束了"
             isPreviewing.value -> "先记住这个示例"
-            else -> state.instruction
+            else -> player.levelTitle
         },
-        supporting = state.message,
-        containerColor = if (state.isSafetyStopped) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+        supporting = player.message,
+        containerColor = if (isSafetyStopped) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
     ) {
-        if (state.isSafetyStopped) {
+        if (isSafetyStopped) {
             Text("训练已经停止。请不要继续操作。", color = Error, style = MaterialTheme.typography.titleMedium)
-        } else if (state.isPaused) {
+        } else if (isPaused) {
             Button(
                 onClick = onResume,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = "恢复儿童训练" },
-                enabled = !state.isWorking
-            ) { Text(if (state.isWorking) "请稍等" else "准备好了，继续") }
-        } else if (!state.courseUnlocked) {
-            Text("完成六题起点小测后，就可以开始第一关。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(
-                onClick = onPause,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = "让儿童休息" },
-                enabled = !state.isWorking
-            ) { Text("先休息") }
-        } else if (!state.courseOpen) {
-            Button(onClick = onResumeCourse, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).semantics { contentDescription = "继续课程" }) {
-                Text("继续课程")
-            }
+                enabled = !player.isWorking
+            ) { Text(if (player.isWorking) "请稍等" else "准备好了，继续") }
+        } else if (player.finished) {
+            Text(if (player.passed) "这一关通过了，可以去下一关了！" else "这一关结束，可以再试一次。", style = MaterialTheme.typography.titleMedium)
+            Text("完成 ${player.runCompleted} / ${player.activityTotal} 个活动，答对 ${player.runCorrect} / ${player.runTotal} 题。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = onLeave, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).semantics { contentDescription = "回到关卡地图" }) { Text("回到关卡地图") }
+        } else if (question == null) {
+            Text("这个活动暂时没有题目，请返回地图。", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            Text("${state.courseTitle} · 第 ${state.currentCourseLevel} 关 · ${state.courseProgress.coerceAtMost(state.courseTotal)} / ${state.courseTotal} 个活动", style = MaterialTheme.typography.labelLarge)
+            Text("第 ${player.levelOrder} 关 · 活动 ${player.activityIndex + 1} / ${player.activityTotal} · ${player.activityLabel}", style = MaterialTheme.typography.labelLarge)
             if (isPreviewing.value) {
                 Text("请认真看一看，${((previewRemainingMs.value + 999L) / 1000L).coerceAtLeast(1L)} 秒后开始选择。")
-                StimulusCard(state.courseStimulus, "记忆示例")
+                StimulusCard(question.stimulus, "记忆示例")
                 LinearProgressIndicator(
                     progress = {
-                        1f - (previewRemainingMs.value.toFloat() / state.coursePreviewMs.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
+                        1f - (previewRemainingMs.value.toFloat() / question.previewMs.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
                     },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
                 )
-            } else if (state.courseProgress >= state.courseTotal) {
-                Text("课程完成了，可以休息一下。", style = MaterialTheme.typography.titleMedium)
             } else {
-                if (!isMemoryQuestion && state.courseStimulus.isNotBlank()) {
-                    StimulusCard(state.courseStimulus, "题目示例")
-                }
-                Text(state.instruction, style = MaterialTheme.typography.titleLarge)
+                if (isMemoryQuestion != true && question.stimulus.isNotBlank()) StimulusCard(question.stimulus, "题目示例")
+                Text(question.prompt, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    state.options.withIndex().toList().chunked(2).forEach { rowOptions ->
+                    question.options.withIndex().toList().chunked(2).forEach { rowOptions ->
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                             rowOptions.forEach { (optionIndex, option) ->
                                 val buttonModifier = if (rowOptions.size == 1) Modifier.fillMaxWidth() else Modifier.weight(1f)
-                                ChoiceButton(option, optionIndex, onChoice, buttonModifier, !state.isWorking)
+                                ChoiceButton(option, optionIndex, onAnswer, buttonModifier, !player.isWorking)
                             }
                         }
                     }
@@ -279,9 +290,9 @@ private fun TrainingAnswerCard(
             OutlinedButton(
                 onClick = onPause,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = "让儿童休息" },
-                enabled = !state.isWorking
+                enabled = !player.isWorking
             ) { Text("先休息") }
-            TextButton(onClick = onLeaveCourse, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "暂时离开课程" }) { Text("暂时离开这一关") }
+            TextButton(onClick = onLeave, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "暂时离开这一关" }) { Text("暂时离开这一关") }
         }
     }
 }
@@ -313,51 +324,66 @@ private fun containsVisualMaterial(value: String): Boolean = value.any { charact
 }
 
 @Composable
-private fun CourseProgressCard(state: ChildUiState, onOpenLevel: (Int) -> Unit) {
-    val totalLevels = state.courseMap.size.coerceAtLeast(1)
-    val completedLevels = state.courseMap.count { it.status == "已完成" }
-    val activeLevel = state.courseMap.firstOrNull { it.status == "进行中" }?.level ?: (completedLevels + 1).coerceAtMost(totalLevels)
-    val progress = (completedLevels.toFloat() / totalLevels).coerceIn(0f, 1f)
-    SectionSurface(title = "关卡进度", supporting = "完成当前关卡后，下一关会自动解锁。") {
+private fun CurriculumMapCard(
+    map: CurriculumMapUi,
+    courseUnlocked: Boolean,
+    isWorking: Boolean,
+    onChooseInterest: (String) -> Unit,
+    onOpenLevel: (Int) -> Unit
+) {
+    SectionSurface(title = "关卡地图", supporting = "完成当前关卡后，下一关会自动解锁。") {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
                 Text("我的彩虹冒险", style = MaterialTheme.typography.titleLarge)
-                Text("已完成 $completedLevels / $totalLevels 关", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("已完成 ${map.completedLevels} / ${map.totalLevels} 关", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text("$activeLevel / $totalLevels", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+            Text("${map.activeLevel} / ${map.totalLevels}", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
         }
         LinearProgressIndicator(
-            progress = { progress },
+            progress = { map.completedLevels.toFloat() / map.totalLevels.coerceAtLeast(1) },
             modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp)
         )
-        StatusLine("当前关卡", "第 $activeLevel 关 · ${state.courseMap.getOrNull(activeLevel - 1)?.title ?: state.courseTitle}")
         Spacer(Modifier.height(8.dp))
-        StatusLine("活动进度", "${(state.courseProgress % 5).let { if (it == 0 && completedLevels > 0) 5 else it }} / 5")
-        Spacer(Modifier.height(8.dp))
-        Text(state.courseSummary, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(12.dp))
-        state.courseMap.forEach { level ->
-            val isOpen = level.status == "进行中"
-            val isCompleted = level.status == "已完成"
-            val label = when {
-                isCompleted -> "✓ ${level.level}. ${level.title} · 已完成"
-                isOpen -> "▶ ${level.level}. ${level.title} · 开始训练"
-                else -> "🔒 ${level.level}. ${level.title} · 待解锁"
-            }
-            if (isOpen) {
-                Button(
-                    onClick = { onOpenLevel(level.level) },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).heightIn(min = 56.dp),
-                    enabled = state.courseUnlocked && !state.isWorking
-                ) { Text(label) }
-            } else {
-                OutlinedButton(
-                    onClick = {},
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).heightIn(min = 52.dp),
-                    enabled = false
-                ) { Text(label) }
+        when {
+            !courseUnlocked -> Text("完成六题起点小测后，就可以开始第一关。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            !map.interestChosen -> InterestGateway(map.interestOptions, onChooseInterest)
+            else -> map.levels.forEach { level -> LevelButton(level, isWorking, onOpenLevel) }
+        }
+    }
+}
+
+@Composable
+private fun InterestGateway(options: List<String>, onChooseInterest: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("先选一个喜欢的主题，小星会用这个主题陪你玩。", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            options.forEach { option ->
+                OutlinedButton(onClick = { onChooseInterest(option) }, modifier = Modifier.weight(1f)) { Text(option) }
             }
         }
+    }
+}
+
+@Composable
+private fun LevelButton(level: CurriculumLevelUi, isWorking: Boolean, onOpenLevel: (Int) -> Unit) {
+    val label = when (level.status) {
+        CurriculumLevelStatus.COMPLETED -> "✓ ${level.icon} 第 ${level.order} 关 · ${level.title} · ${level.theme}"
+        CurriculumLevelStatus.AVAILABLE -> "▶ ${level.icon} 第 ${level.order} 关 · ${level.title} · ${level.theme}"
+        CurriculumLevelStatus.LOCKED -> "🔒 ${level.icon} 第 ${level.order} 关 · ${level.title}"
+    }
+    val clickable = level.status == CurriculumLevelStatus.AVAILABLE || level.status == CurriculumLevelStatus.COMPLETED
+    if (clickable) {
+        Button(
+            onClick = { onOpenLevel(level.order) },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).heightIn(min = 56.dp),
+            enabled = !isWorking
+        ) { Text(label) }
+    } else {
+        OutlinedButton(
+            onClick = {},
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).heightIn(min = 52.dp),
+            enabled = false
+        ) { Text(label) }
     }
 }
 

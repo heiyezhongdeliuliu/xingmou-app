@@ -64,6 +64,8 @@ import com.xingmou.data.db.OrganizationEntity
 import com.xingmou.data.db.LocalSessionEntity
 import com.xingmou.data.db.LocalUserEntity
 import com.xingmou.data.catalog.QuestionCatalog
+import com.xingmou.data.catalog.CurriculumCatalog
+import com.xingmou.data.catalog.CurriculumCatalog.GeneratedCurriculumLevel
 import com.xingmou.data.catalog.AssessmentCatalog
 import com.xingmou.BaselineUiState
 import com.xingmou.ReportMetricUi
@@ -96,6 +98,9 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
     private val apiKeyStore = LocalApiKeyStore(application)
     private var activeChildId: String? = null
     private var pendingImport: com.xingmou.core.consent.AuthorizedChildExport? = null
+    private var generatedCurriculum: List<GeneratedCurriculumLevel> = emptyList()
+    private val curriculumPassedOrders = mutableSetOf<Int>()
+    private var curriculumInterestChosen = false
     private val localUserId = SeedData.DEMO_USER_ID
     private val childId: String
         get() = activeChildId ?: SeedData.defaultChild.childId
@@ -592,6 +597,7 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
                 courseMap = courseMap
             ))
         }
+        refreshCurriculumMap()
     }
 
     private fun publishBaseline(isOpen: Boolean = _uiState.value.baseline.isOpen) {
@@ -721,6 +727,142 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
 
     fun selectInterest(value: String) {
         _uiState.update { it.copy(child = it.child.copy(interest = value)) }
+    }
+
+    // ---- 20 关彩虹冒险：地图 + 播放器（纯 UI/流程，不动 DB）----
+
+    /** 按基线得分（最弱在前）排序能力域；无基线时用默认 A..F。 */
+    private fun domainScoreOrder(): List<String> {
+        val scores = baselineEngine.scores(baselineSession)
+        val known = listOf("A", "B", "C", "D", "E", "F")
+        if (scores.isEmpty()) return known
+        return known.sortedBy { scores[it] ?: 100 }
+    }
+
+    private fun ensureCurriculum(): List<GeneratedCurriculumLevel> {
+        if (generatedCurriculum.isEmpty()) {
+            generatedCurriculum = CurriculumCatalog.buildCurriculumLevels(domainScoreOrder())
+        }
+        return generatedCurriculum
+    }
+
+    private fun isLevelAvailable(order: Int): Boolean {
+        if (order == 1) return baselineSession.status == BaselineStatus.COMPLETED && curriculumInterestChosen
+        return (order - 1) in curriculumPassedOrders
+    }
+
+    private fun buildCurriculumMap(): CurriculumMapUi {
+        val child = _uiState.value.child
+        val baselineDone = baselineSession.status == BaselineStatus.COMPLETED
+        val levels = ensureCurriculum().map { level ->
+            val status = when {
+                level.order in curriculumPassedOrders -> CurriculumLevelStatus.COMPLETED
+                level.order == 1 && baselineDone && curriculumInterestChosen -> CurriculumLevelStatus.AVAILABLE
+                level.order > 1 && (level.order - 1) in curriculumPassedOrders -> CurriculumLevelStatus.AVAILABLE
+                else -> CurriculumLevelStatus.LOCKED
+            }
+            CurriculumLevelUi(
+                order = level.order,
+                title = level.title,
+                icon = level.icon,
+                theme = level.theme,
+                difficulty = level.difficulty,
+                status = status
+            )
+        }
+        return CurriculumMapUi(
+            levels = levels,
+            completedLevels = levels.count { it.status == CurriculumLevelStatus.COMPLETED },
+            totalLevels = levels.size,
+            activeLevel = levels.firstOrNull { it.status == CurriculumLevelStatus.AVAILABLE }?.order ?: 1,
+            interest = child.interest,
+            interestOptions = child.interestOptions,
+            interestChosen = curriculumInterestChosen
+        )
+    }
+
+    fun refreshCurriculumMap() {
+        _uiState.update { it.copy(child = it.child.copy(curriculumMap = buildCurriculumMap())) }
+    }
+
+    /** 兴趣门槛：选好主题后才开放第一关。 */
+    fun chooseCurriculumInterest(value: String) {
+        curriculumInterestChosen = true
+        _uiState.update { it.copy(child = it.child.copy(interest = value)) }
+        refreshCurriculumMap()
+    }
+
+    fun openCurriculumLevel(order: Int) {
+        if (order !in curriculumPassedOrders && !isLevelAvailable(order)) return
+        val level = ensureCurriculum().firstOrNull { it.order == order } ?: return
+        val activities = level.activities
+        if (activities.isEmpty()) return
+        val first = activities.first()
+        val question = CurriculumCatalog.resolveQuestion(first)
+        _uiState.update { it.copy(child = it.child.copy(curriculumPlayer = CurriculumPlayerUi(
+            levelOrder = order,
+            levelTitle = level.title,
+            activityIndex = 0,
+            activityTotal = activities.size,
+            activityLabel = first.label,
+            question = question,
+            runCompleted = 0, runCorrect = 0, runTotal = 0,
+            isWorking = false,
+            message = "",
+            finished = false, passed = false
+        ))) }
+    }
+
+    fun leaveCurriculumLevel() {
+        _uiState.update { it.copy(child = it.child.copy(curriculumPlayer = CurriculumPlayerUi())) }
+        refreshCurriculumMap()
+    }
+
+    fun answerCurriculumActivity(option: Int) {
+        val player = _uiState.value.child.curriculumPlayer
+        val question = player.question
+        if (player.isWorking || player.finished || question == null) return
+        val evaluation = QuestionEvaluator.evaluate(question, option)
+        if (!evaluation.isValidSelection) {
+            _uiState.update { it.copy(child = it.child.copy(curriculumPlayer = player.copy(message = "请选择题目中的一个选项。"))) }
+            return
+        }
+        val completed = evaluation.completed
+        val correct = evaluation.correct ?: completed
+        _uiState.update { it.copy(child = it.child.copy(curriculumPlayer = player.copy(isWorking = true))) }
+        viewModelScope.launch {
+            val level = ensureCurriculum().firstOrNull { it.order == player.levelOrder }
+            val activities = level?.activities.orEmpty()
+            val nextIndex = player.activityIndex + 1
+            val runCompleted = player.runCompleted + (if (completed) 1 else 0)
+            val runCorrect = player.runCorrect + (if (correct) 1 else 0)
+            val runTotal = player.runTotal + 1
+            val finished = nextIndex >= activities.size
+            val passed = level != null && CurriculumCatalog.isPassed(level, runCompleted, runCorrect, runTotal)
+            if (passed) level?.let { curriculumPassedOrders.add(it.order) }
+            val nextActivity = if (!finished) activities.getOrNull(nextIndex) else null
+            val nextQuestion = nextActivity?.let { CurriculumCatalog.resolveQuestion(it) }
+            _uiState.update { st ->
+                st.copy(child = st.child.copy(curriculumPlayer = player.copy(
+                    activityIndex = nextIndex.coerceAtMost(activities.size),
+                    activityLabel = nextActivity?.label ?: player.activityLabel,
+                    question = nextQuestion,
+                    runCompleted = runCompleted,
+                    runCorrect = runCorrect,
+                    runTotal = runTotal,
+                    isWorking = false,
+                    message = when {
+                        passed -> "太棒了！这一关通过了。"
+                        finished -> "这一关结束，可以再试一次。"
+                        correct -> "做得好！"
+                        else -> "没关系，下一个活动。"
+                    },
+                    finished = finished,
+                    passed = passed
+                )))
+            }
+            refreshCurriculumMap()
+        }
     }
 
     fun completeChildTask(selectedOption: Int) {

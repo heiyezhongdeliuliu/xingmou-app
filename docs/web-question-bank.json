@@ -7,6 +7,8 @@
     "baselineCount": 24,
     "moduleCount": 66,
     "moduleCountPerModule": 3,
+    "curriculumLevels": 20,
+    "activitiesPerLevel": 5,
     "sourceFiles": {
       "baseline": "js/onboarding-assessment.js BASELINE_GAMES",
       "moduleBank": "js/question-logic-v2.js MODULE_ACTIVITY_BANK",
@@ -199,5 +201,64 @@
     "supportOutcome": "independent / supported / not-completed",
     "firstCorrect": "correct 且 promptLevel===0",
     "baselineDomainScore": "每域按 完全独立=1 / 支持完成=0.5 / 提示=0.55 / 重复听=0.8 / 错=0 加权平均后×100"
+  },
+  "curriculum": {
+    "name": "20 关彩虹冒险课程（最终接管儿童训练地图）",
+    "sourceFile": "js/level-curriculum.js",
+    "levelCount": 20,
+    "activitiesPerLevel": 5,
+    "totalActivitySlots": 100,
+    "passRule": { "minCompleted": 5, "minAccuracy": 0.6 },
+    "difficultyFormula": "min(5, floor(levelIndex/5)+1) —— LV01-05=1, LV06-10=2, LV11-15=3, LV16-20=4",
+    "activityTypes": {
+      "color": { "emoji": "🎨", "label": "颜色" },
+      "shape": { "emoji": "🔷", "label": "图形" },
+      "choice": { "emoji": "👆", "label": "选择" },
+      "audio": { "emoji": "🎧", "label": "听声音" },
+      "matching": { "emoji": "🧩", "label": "配对" },
+      "memory": { "emoji": "🧠", "label": "记忆" },
+      "sequence": { "emoji": "🚂", "label": "排顺序" },
+      "sorting": { "emoji": "🧺", "label": "分类" },
+      "spoken": { "emoji": "💬", "label": "说一说" },
+      "guided": { "emoji": "🤝", "label": "跟着做" },
+      "tap": { "emoji": "⭐", "label": "点一点" }
+    },
+    "moduleToActivityType": {
+      "P01": "color", "P02": "shape", "P03": "choice", "P04": "audio",
+      "M01": "matching", "M02": "memory", "M03": "sequence", "M04": "memory",
+      "E01": "choice", "E02": "sorting", "E03": "choice", "E04": "sequence",
+      "L01": "spoken", "L02": "spoken", "L03": "audio", "L04": "choice",
+      "S01": "choice", "S02": "guided", "S03": "choice",
+      "D01": "sequence", "D02": "tap", "D03": "guided"
+    },
+    "levels": [
+      { "levelId": "LV01", "order": 1, "title": "出发啦", "icon": "🌱", "difficulty": 1 },
+      { "levelId": "LV02", "order": 2, "title": "眼睛小侦探", "icon": "👀", "difficulty": 1 },
+      { "levelId": "LV03", "order": 3, "title": "记忆宝盒", "icon": "🎁", "difficulty": 1 },
+      { "levelId": "LV04", "order": 4, "title": "听听看", "icon": "🎧", "difficulty": 1 },
+      { "levelId": "LV05", "order": 5, "title": "第一座彩虹桥", "icon": "🌈", "difficulty": 1 },
+      { "levelId": "LV06", "order": 6, "title": "配对高手", "icon": "🧩", "difficulty": 2 },
+      { "levelId": "LV07", "order": 7, "title": "顺序小火车", "icon": "🚂", "difficulty": 2 },
+      { "levelId": "LV08", "order": 8, "title": "生活小帮手", "icon": "🏠", "difficulty": 2 },
+      { "levelId": "LV09", "order": 9, "title": "表情朋友", "icon": "😊", "difficulty": 2 },
+      { "levelId": "LV10", "order": 10, "title": "第二座彩虹桥", "icon": "🌈", "difficulty": 2 },
+      { "levelId": "LV11", "order": 11, "title": "分类探险", "icon": "🧺", "difficulty": 3 },
+      { "levelId": "LV12", "order": 12, "title": "指令挑战", "icon": "👂", "difficulty": 3 },
+      { "levelId": "LV13", "order": 13, "title": "说说看", "icon": "💬", "difficulty": 3 },
+      { "levelId": "LV14", "order": 14, "title": "轮流合作", "icon": "🤝", "difficulty": 3 },
+      { "levelId": "LV15", "order": 15, "title": "第三座彩虹桥", "icon": "🌈", "difficulty": 3 },
+      { "levelId": "LV16", "order": 16, "title": "计划小达人", "icon": "🗺️", "difficulty": 4 },
+      { "levelId": "LV17", "order": 17, "title": "工作记忆站", "icon": "🧠", "difficulty": 4 },
+      { "levelId": "LV18", "order": 18, "title": "生活闯关", "icon": "🏆", "difficulty": 4 },
+      { "levelId": "LV19", "order": 19, "title": "综合大冒险", "icon": "🚀", "difficulty": 4 },
+      { "levelId": "LV20", "order": 20, "title": "彩虹岛庆典", "icon": "🏝️", "difficulty": 4 }
+    ],
+    "activityGeneration": {
+      "focusDomains": "每关取 3 个最弱能力域（按儿童得分升序，默认 A,B,C,D,E,F）: [order[i%6], order[(i+1)%6], order[(i+3)%6]]，i=0..19",
+      "pool": "focus 域内模块，剔除用户排除的活动类型；不足 5 个补其他域模块，再不足补 choice/tap 模块",
+      "pick5": "从 pool 轮转（起点 start=i*3）挑 5 个不重复模块，每活动 type=moduleToActivityType[moduleId]",
+      "questionVariant": "(i + 活动下标) % 3，决定该活动抽模块 3 题中的哪一题",
+      "questionSource": "MODULE_ACTIVITY_BANK[moduleId][questionVariant % 3] —— 题目正文来自底层 66 题，按变体轮换复用，并非 100 道独立新题"
+    }
   }
 }

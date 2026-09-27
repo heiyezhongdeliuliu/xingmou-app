@@ -83,6 +83,7 @@ import kotlinx.coroutines.launch
 
 class XingmouViewModel(application: Application) : AndroidViewModel(application) {
     private val accessibilityPreferences = application.getSharedPreferences("xingmou_accessibility", 0)
+    private val curriculumPrefs = application.getSharedPreferences("xingmou_curriculum", 0)
     private val database = QizhiDatabase.getInstance(application)
     private val eventCoordinator = AgentEventCoordinator(
         AgentEventProcessor(),
@@ -597,6 +598,7 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
                 courseMap = courseMap
             ))
         }
+        loadCurriculumState(childId)
         refreshCurriculumMap()
     }
 
@@ -729,7 +731,25 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
         _uiState.update { it.copy(child = it.child.copy(interest = value)) }
     }
 
-    // ---- 20 关彩虹冒险：地图 + 播放器（纯 UI/流程，不动 DB）----
+    // ---- 20 关彩虹冒险：地图 + 播放器（作答落库 + 进度持久化）----
+
+    /** 从 SharedPreferences 恢复当前儿童的通关顺序与兴趣门槛（键按 childId 隔离）。 */
+    private fun loadCurriculumState(scopedChildId: String) {
+        curriculumPassedOrders.clear()
+        val saved = curriculumPrefs.getString("passed_orders_$scopedChildId", null)
+        if (!saved.isNullOrBlank()) {
+            curriculumPassedOrders.addAll(saved.split(',').mapNotNull { it.trim().toIntOrNull() })
+        }
+        curriculumInterestChosen = curriculumPrefs.getBoolean("interest_chosen_$scopedChildId", false)
+    }
+
+    /** 把通关顺序与兴趣门槛写回 SharedPreferences，进程重启后解锁链不归零。 */
+    private fun persistCurriculumState() {
+        curriculumPrefs.edit()
+            .putString("passed_orders_$childId", curriculumPassedOrders.sorted().joinToString(","))
+            .putBoolean("interest_chosen_$childId", curriculumInterestChosen)
+            .apply()
+    }
 
     /** 按基线得分（最弱在前）排序能力域；无基线时用默认 A..F。 */
     private fun domainScoreOrder(): List<String> {
@@ -788,6 +808,7 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
     /** 兴趣门槛：选好主题后才开放第一关。 */
     fun chooseCurriculumInterest(value: String) {
         curriculumInterestChosen = true
+        persistCurriculumState()
         _uiState.update { it.copy(child = it.child.copy(interest = value)) }
         refreshCurriculumMap()
     }
@@ -819,7 +840,8 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun answerCurriculumActivity(option: Int) {
-        val player = _uiState.value.child.curriculumPlayer
+        val snapshot = _uiState.value.child
+        val player = snapshot.curriculumPlayer
         val question = player.question
         if (player.isWorking || player.finished || question == null) return
         val evaluation = QuestionEvaluator.evaluate(question, option)
@@ -831,37 +853,71 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
         val correct = evaluation.correct ?: completed
         _uiState.update { it.copy(child = it.child.copy(curriculumPlayer = player.copy(isWorking = true))) }
         viewModelScope.launch {
-            val level = ensureCurriculum().firstOrNull { it.order == player.levelOrder }
-            val activities = level?.activities.orEmpty()
-            val nextIndex = player.activityIndex + 1
-            val runCompleted = player.runCompleted + (if (completed) 1 else 0)
-            val runCorrect = player.runCorrect + (if (correct) 1 else 0)
-            val runTotal = player.runTotal + 1
-            val finished = nextIndex >= activities.size
-            val passed = level != null && CurriculumCatalog.isPassed(level, runCompleted, runCorrect, runTotal)
-            if (passed) level?.let { curriculumPassedOrders.add(it.order) }
-            val nextActivity = if (!finished) activities.getOrNull(nextIndex) else null
-            val nextQuestion = nextActivity?.let { CurriculumCatalog.resolveQuestion(it) }
-            _uiState.update { st ->
-                st.copy(child = st.child.copy(curriculumPlayer = player.copy(
-                    activityIndex = nextIndex.coerceAtMost(activities.size),
-                    activityLabel = nextActivity?.label ?: player.activityLabel,
-                    question = nextQuestion,
-                    runCompleted = runCompleted,
-                    runCorrect = runCorrect,
-                    runTotal = runTotal,
-                    isWorking = false,
-                    message = when {
-                        passed -> "太棒了！这一关通过了。"
-                        finished -> "这一关结束，可以再试一次。"
-                        correct -> "做得好！"
-                        else -> "没关系，下一个活动。"
-                    },
-                    finished = finished,
-                    passed = passed
-                )))
+            runCatching {
+                val now = System.currentTimeMillis()
+                val result = TrainingResult(
+                    taskId = question.id,
+                    correct = correct,
+                    firstCorrect = correct,
+                    reactionMs = 1_500L,
+                    errorType = if (correct) null else "choice_mismatch",
+                    promptLevel = snapshot.supportLevel.ordinal
+                )
+                // 作答结果经事件协调器落库（training_records），并做难度/支持/安全调整。
+                val decision = eventCoordinator.handle(
+                    TrainingCompletedEvent(
+                        eventId = newId("training-event"),
+                        runId = newId("child-run"),
+                        childId = childId,
+                        occurredAt = now,
+                        domain = question.domain,
+                        currentDifficulty = snapshot.difficulty,
+                        currentSupportLevel = snapshot.supportLevel,
+                        result = result,
+                        recentResults = snapshot.recentResults
+                    )
+                )
+                val level = ensureCurriculum().firstOrNull { it.order == player.levelOrder }
+                val activities = level?.activities.orEmpty()
+                val nextIndex = player.activityIndex + 1
+                val runCompleted = player.runCompleted + (if (completed) 1 else 0)
+                val runCorrect = player.runCorrect + (if (correct) 1 else 0)
+                val runTotal = player.runTotal + 1
+                val finished = nextIndex >= activities.size
+                val passed = level != null && CurriculumCatalog.isPassed(level, runCompleted, runCorrect, runTotal)
+                if (passed) level?.let { curriculumPassedOrders.add(it.order) }
+                persistCurriculumState()
+                val nextActivity = if (!finished) activities.getOrNull(nextIndex) else null
+                val nextQuestion = nextActivity?.let { CurriculumCatalog.resolveQuestion(it) }
+                val updatedChild = snapshot.apply(decision).copy(
+                    recentResults = (snapshot.recentResults + result).takeLast(3),
+                    consecutiveFailures = if (correct) 0 else snapshot.consecutiveFailures + 1,
+                    curriculumPlayer = player.copy(
+                        activityIndex = nextIndex.coerceAtMost(activities.size),
+                        activityLabel = nextActivity?.label ?: player.activityLabel,
+                        question = nextQuestion,
+                        runCompleted = runCompleted,
+                        runCorrect = runCorrect,
+                        runTotal = runTotal,
+                        isWorking = false,
+                        message = when {
+                            passed -> "太棒了！这一关通过了。"
+                            finished -> "这一关结束，可以再试一次。"
+                            correct -> "做得好！"
+                            else -> "没关系，下一个活动。"
+                        },
+                        finished = finished,
+                        passed = passed
+                    )
+                )
+                _uiState.update { it.copy(child = updatedChild) }
+                refreshCurriculumMap()
+            }.onFailure { error ->
+                _uiState.update { it.copy(child = it.child.copy(
+                    curriculumPlayer = it.child.curriculumPlayer.copy(isWorking = false, message = "记录没有保存，请先休息后再试。"),
+                    lastEvent = error.javaClass.simpleName
+                )) }
             }
-            refreshCurriculumMap()
         }
     }
 

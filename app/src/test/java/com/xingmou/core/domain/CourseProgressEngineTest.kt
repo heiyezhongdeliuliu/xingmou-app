@@ -12,39 +12,39 @@ class CourseProgressEngineTest {
     @Test
     fun onlyCorrectUniqueQuestionsAdvanceProgress() {
         val records = listOf(
-            record("M02-L1-01", true, 1),
-            record("M02-L1-01", true, 2),
-            record("M02-L1-02", false, 3),
-            record("M02-L1-03", true, 4)
+            record("M02-01", true, 1),
+            record("M02-01", true, 2),
+            record("M02-02", false, 3),
+            record("M02-03", true, 4)
         )
         val progress = engine.summarize(records)
         assertEquals(2, progress.completedCount)
-        assertEquals("M02-L1-02", progress.nextQuestion?.id)
+        assertEquals("M02-02", progress.nextQuestion?.id)
         assertFalse(progress.isComplete)
-        assertEquals("已完成 2/5 · 共 4 条记录", progress.summary)
+        assertEquals("已完成 2/3 · 共 4 条记录", progress.summary)
     }
 
     @Test
-    fun fiveDifferentCorrectQuestionsCompleteFirstLevel() {
-        val progress = engine.summarize((1..5).map { record("M02-L1-0$it", true, it.toLong()) })
+    fun threeDifferentCorrectQuestionsCompleteFirstLevel() {
+        val progress = engine.summarize((1..3).map { record("M02-0$it", true, it.toLong()) })
         assertTrue(progress.isComplete)
-        assertEquals(5, progress.completedCount)
+        assertEquals(3, progress.completedCount)
         assertEquals(null, progress.nextQuestion)
     }
 
     @Test
     fun encouragementUsesProcessSignalsWithoutRanking() {
         val records = listOf(
-            record("M02-L1-01", true, 1),
-            record("M02-L1-02", true, 2),
-            record("M02-L1-03", true, 3)
+            record("M02-01", true, 1),
+            record("M02-02", true, 2),
+            record("M02-03", true, 3)
         )
         val progress = engine.summarize(records)
         val encouragement = engine.encouragement(progress, records)
         assertEquals(30, encouragement.points)
-        assertEquals(0, encouragement.completedRounds)
+        assertEquals(1, encouragement.completedRounds)
         assertEquals("越来越熟悉", encouragement.trendLabel)
-        assertTrue(encouragement.rewardMessage.contains("3"))
+        assertTrue(encouragement.rewardMessage.contains("完成"))
     }
 
     private fun record(taskId: String, correct: Boolean, createdAt: Long) = TrainingRecordEntity(

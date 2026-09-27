@@ -41,6 +41,7 @@ import com.xingmou.core.domain.KnowledgeRoute
 import com.xingmou.core.domain.PlanActor
 import com.xingmou.core.domain.PlanStateMachine
 import com.xingmou.core.domain.PlanStatus
+import com.xingmou.core.domain.QuestionEvaluator
 import com.xingmou.core.domain.TrainingResult
 import com.xingmou.core.model.CommunicationLevel
 import com.xingmou.core.model.Port
@@ -577,6 +578,9 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
                 currentCourseLevel = currentLevel,
                 courseTitle = question?.let { q -> V08_COURSE_LEVELS.getOrNull(currentLevel - 1)?.title ?: q.moduleId } ?: "课程完成",
                 courseQuestionId = question?.id,
+                courseQuestionType = question?.type ?: com.xingmou.data.catalog.QuestionType.CHOICE,
+                courseStimulus = question?.stimulus.orEmpty(),
+                coursePreviewMs = question?.previewMs ?: 3_000L,
                 assetKey = question?.assetKey ?: it.child.assetKey,
                 courseUnlocked = baselineSession.status == BaselineStatus.COMPLETED,
                 courseOpen = true,
@@ -719,10 +723,20 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
         _uiState.update { it.copy(child = it.child.copy(interest = value)) }
     }
 
-    fun completeChildTask(correct: Boolean) {
+    fun completeChildTask(selectedOption: Int) {
         val snapshot = _uiState.value.child
         if (snapshot.isWorking || snapshot.isSafetyStopped || !snapshot.courseUnlocked || !snapshot.courseOpen || snapshot.courseQuestionId == null || snapshot.courseProgress >= snapshot.courseTotal) return
         val question = QuestionCatalog.fullCourseQuestions.firstOrNull { it.id == snapshot.courseQuestionId }
+        if (question == null) {
+            _uiState.update { it.copy(child = it.child.copy(message = "当前题目不存在，请先返回关卡地图。", lastEvent = "QUESTION_NOT_FOUND")) }
+            return
+        }
+        val evaluation = QuestionEvaluator.evaluate(question, selectedOption)
+        if (!evaluation.isValidSelection) {
+            _uiState.update { it.copy(child = it.child.copy(message = "请选择题目中的一个选项。", lastEvent = "INVALID_SELECTION")) }
+            return
+        }
+        val correct = evaluation.correct ?: evaluation.completed
         _uiState.update { it.copy(child = it.child.copy(isWorking = true)) }
         viewModelScope.launch {
             runCatching {

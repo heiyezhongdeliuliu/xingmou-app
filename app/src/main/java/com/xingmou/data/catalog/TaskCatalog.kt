@@ -9,32 +9,33 @@ data class TaskDefinition(
     val materialType: String = "图片"
 )
 
-/** 原版 22 个训练模块的第一版目录，题库内容后续按模块逐步补齐。 */
+/** Web 端 22 个训练模块目录，名称、领域和目标以 WEB_BANK_V1 为准。 */
 object TaskCatalog {
     val all: List<TaskDefinition> = listOf(
-        TaskDefinition("P01", "颜色辨别", "A", "target_search", "在干扰中找到目标颜色"),
-        TaskDefinition("P02", "形状匹配", "A", "target_search", "识别并匹配目标形状"),
-        TaskDefinition("P03", "目标搜索", "A", "target_search", "保持注意并找到指定目标"),
-        TaskDefinition("P04", "共同注意", "A", "observed", "根据指向或视线关注目标"),
-        TaskDefinition("M01", "即时记忆", "B", "memory_match", "短时保持单个信息"),
-        TaskDefinition("M02", "图片配对", "B", "memory_match", "记住并匹配相同图片"),
-        TaskDefinition("M03", "顺序记忆", "B", "sequence", "按顺序复现信息"),
-        TaskDefinition("M04", "工作记忆", "B", "memory_match", "在干扰下保持并操作信息"),
-        TaskDefinition("E01", "分类推理", "C", "sorting", "根据规则进行分类"),
-        TaskDefinition("E02", "大小排序", "C", "sorting", "按大小或数量排序"),
-        TaskDefinition("E03", "按顺序放图片", "C", "sequence", "按照事件顺序排列图片"),
-        TaskDefinition("E04", "找不同", "C", "odd_one_out", "发现规则中的不同项"),
-        TaskDefinition("L01", "指认物品", "D", "choice", "理解词语并指认目标"),
-        TaskDefinition("L02", "跟读词语", "D", "audio", "模仿并表达目标词语"),
-        TaskDefinition("L03", "理解指令", "D", "choice", "理解一步或两步指令"),
-        TaskDefinition("L04", "替代沟通", "D", "observed", "使用图片或动作表达需要"),
-        TaskDefinition("S01", "情绪识别", "E", "choice", "识别基础情绪线索"),
-        TaskDefinition("S02", "互动轮流", "E", "observed", "在互动中等待和轮流"),
-        TaskDefinition("S03", "情境选择", "E", "choice", "在熟悉情境中选择支持方式"),
-        TaskDefinition("D01", "生活工具", "F", "choice", "识别生活工具及用途"),
-        TaskDefinition("D02", "模仿动作", "F", "observed", "模仿一个简单动作"),
-        TaskDefinition("D03", "生活顺序", "F", "sequence", "按步骤完成生活流程")
+        TaskDefinition("P01", "颜色识别", "A", "choice", "在干扰项中指认目标颜色", "图片"),
+        TaskDefinition("P02", "形状辨认", "A", "choice", "辨认基础形状与大小", "图片"),
+        TaskDefinition("P03", "视觉搜索/找不同", "A", "choice", "训练选择性注意与视觉扫描", "图片"),
+        TaskDefinition("P04", "听觉注意", "A", "audio", "辨认目标声音并抗干扰", "语音"),
+        TaskDefinition("M01", "物品配对", "B", "choice", "匹配相同或关联物品", "图片"),
+        TaskDefinition("M02", "翻牌记忆", "B", "memory", "记住图片位置并配对", "记忆"),
+        TaskDefinition("M03", "序列回忆", "B", "sequence", "按顺序回忆颜色、数字或图形", "记忆"),
+        TaskDefinition("M04", "工作记忆", "B", "memory", "短时保持并操作信息", "记忆"),
+        TaskDefinition("L01", "图片命名", "D", "observed", "看图说词并提取词汇", "观察"),
+        TaskDefinition("L02", "句子表达", "D", "observed", "用完整句描述图片", "观察"),
+        TaskDefinition("L03", "指令理解", "D", "audio", "理解一步或多步指令", "语音"),
+        TaskDefinition("L04", "AAC/图片选择", "D", "choice", "用图片表达需要与选择", "图片"),
+        TaskDefinition("E01", "因果关系", "C", "choice", "理解动作、事件与结果", "图片"),
+        TaskDefinition("E02", "分类整理", "C", "sorting", "按类别、功能或属性分类", "图片"),
+        TaskDefinition("E03", "数量认知", "C", "sorting", "点数、数字匹配与简单比较", "图片"),
+        TaskDefinition("E04", "计划与顺序", "C", "sequence", "排列生活事件步骤", "图片"),
+        TaskDefinition("S01", "情绪识别", "E", "choice", "识别基本表情与情境", "图片"),
+        TaskDefinition("S02", "轮流/共同注意", "E", "observed", "练习等待、轮流和共同关注", "观察"),
+        TaskDefinition("S03", "社交规则", "E", "choice", "理解问候、回应和社交边界", "图片"),
+        TaskDefinition("D01", "生活步骤训练", "F", "sequence", "按顺序完成生活自理步骤", "图片"),
+        TaskDefinition("D02", "精细动作/点选", "F", "choice", "训练点选与手眼协调", "图片"),
+        TaskDefinition("D03", "模仿/节律动作", "F", "observed", "按节律模仿动作并记录完成度", "观察")
     )
 
     fun find(id: String): TaskDefinition? = all.firstOrNull { it.id == id }
 }
+

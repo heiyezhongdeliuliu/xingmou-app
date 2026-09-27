@@ -40,11 +40,12 @@ class BaselineEngine(
     fun answer(session: BaselineSession, option: Int, now: Long): BaselineSession {
         val question = currentQuestion(session) ?: return session
         val normalized = option.coerceIn(0, question.options.lastIndex)
+        val evaluation = QuestionEvaluator.evaluate(question, normalized)
         val answer = BaselineAnswer(
             questionId = question.id,
             domain = question.domain,
             selectedOption = normalized,
-            correct = question.correctOption?.let { it == normalized }
+            correct = evaluation.correct
         )
         val nextIndex = session.currentIndex + 1
         val completed = nextIndex >= questions.size

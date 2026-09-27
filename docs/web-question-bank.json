@@ -1,0 +1,203 @@
+{
+  "meta": {
+    "source": "QizhiTrainingPlatform-Portable (Web 便携版)",
+    "target": "xingmou-app (Android)",
+    "generatedAt": "2026-09-27",
+    "totalQuestions": 90,
+    "baselineCount": 24,
+    "moduleCount": 66,
+    "moduleCountPerModule": 3,
+    "sourceFiles": {
+      "baseline": "js/onboarding-assessment.js BASELINE_GAMES",
+      "moduleBank": "js/question-logic-v2.js MODULE_ACTIVITY_BANK",
+      "domains": "js/enhanced.js ABILITY_DOMAINS",
+      "modules": "js/enhanced.js TRAINING_CATALOG"
+    },
+    "modeToAndroidType": {
+      "choice": "CHOICE",
+      "memory": "MEMORY",
+      "audio": "AUDIO",
+      "spoken": "OBSERVED",
+      "guided": "OBSERVED"
+    }
+  },
+  "domains": {
+    "A": { "name": "注意与感知觉", "color": "#4F86F7" },
+    "B": { "name": "记忆", "color": "#10B981" },
+    "C": { "name": "执行功能与逻辑", "color": "#8B5CF6" },
+    "D": { "name": "语言沟通", "color": "#EC4899" },
+    "E": { "name": "社会情绪", "color": "#F59E0B" },
+    "F": { "name": "生活适应与动作", "color": "#06B6D4" }
+  },
+  "modules": [
+    { "id": "P01", "name": "颜色识别", "domain": "A", "goal": "在干扰项中指认目标颜色" },
+    { "id": "P02", "name": "形状辨认", "domain": "A", "goal": "辨认基础形状与大小" },
+    { "id": "P03", "name": "视觉搜索/找不同", "domain": "A", "goal": "训练选择性注意与视觉扫描" },
+    { "id": "P04", "name": "听觉注意", "domain": "A", "goal": "辨认目标声音并抗干扰" },
+    { "id": "M01", "name": "物品配对", "domain": "B", "goal": "匹配相同或关联物品" },
+    { "id": "M02", "name": "翻牌记忆", "domain": "B", "goal": "记住图片位置并配对" },
+    { "id": "M03", "name": "序列回忆", "domain": "B", "goal": "按顺序回忆颜色、数字或图形" },
+    { "id": "M04", "name": "工作记忆", "domain": "B", "goal": "短时保持并操作信息" },
+    { "id": "L01", "name": "图片命名", "domain": "D", "goal": "看图说词并提取词汇" },
+    { "id": "L02", "name": "句子表达", "domain": "D", "goal": "用完整句描述图片" },
+    { "id": "L03", "name": "指令理解", "domain": "D", "goal": "理解一步或多步指令" },
+    { "id": "L04", "name": "AAC/图片选择", "domain": "D", "goal": "用图片表达需要与选择" },
+    { "id": "E01", "name": "因果关系", "domain": "C", "goal": "理解动作、事件与结果" },
+    { "id": "E02", "name": "分类整理", "domain": "C", "goal": "按类别、功能或属性分类" },
+    { "id": "E03", "name": "数量认知", "domain": "C", "goal": "点数、数字匹配与简单比较" },
+    { "id": "E04", "name": "计划与顺序", "domain": "C", "goal": "排列生活事件步骤" },
+    { "id": "S01", "name": "情绪识别", "domain": "E", "goal": "识别基本表情与情境" },
+    { "id": "S02", "name": "轮流/共同注意", "domain": "E", "goal": "练习等待、轮流和共同关注" },
+    { "id": "S03", "name": "社交规则", "domain": "E", "goal": "理解问候、回应和社交边界" },
+    { "id": "D01", "name": "生活步骤训练", "domain": "F", "goal": "按顺序完成生活自理步骤" },
+    { "id": "D02", "name": "精细动作/点选", "domain": "F", "goal": "训练点选与手眼协调" },
+    { "id": "D03", "name": "模仿/节律动作", "domain": "F", "goal": "按节律模仿动作并记录完成度" }
+  ],
+  "baselineGames": [
+    { "id": "BL-A-01", "domain": "A", "construct": "视觉辨别", "basis": ["发育/智力评估", "平台内置"], "title": "找找小动物", "emoji": "🔍", "mode": "choice", "prompt": "请找到和目标一样的小动物", "targetCue": "🐶", "target": "🐶", "choices": ["🐱", "🐶", "🐰", "🐼"], "scene": null, "preview": [], "encourage": "你认真看到了每一个小动物！" },
+    { "id": "BL-A-02", "domain": "A", "construct": "颜色辨别", "basis": ["发育/智力评估"], "title": "颜色小侦探", "emoji": "🌈", "mode": "choice", "prompt": "请点出红色的东西", "target": "🍎", "choices": ["🥦", "🍎", "🫐", "🍌"], "scene": null, "preview": [], "encourage": "观察得真仔细！" },
+    { "id": "BL-A-03", "domain": "A", "construct": "视觉搜索与反应效率", "basis": ["发育/智力评估", "行为观察"], "title": "谁不一样", "emoji": "👀", "mode": "choice", "prompt": "请找到不一样的一个", "target": "⭐", "choices": ["🌙", "🌙", "⭐"], "allowDuplicateChoices": true, "scene": null, "preview": [], "encourage": "你的小眼睛发现了不同！" },
+    { "id": "BL-B-01", "domain": "B", "construct": "视觉再认", "basis": ["发育/智力评估", "平台内置"], "title": "记忆宝盒", "emoji": "🎁", "mode": "memory", "prompt": "刚才出现的是哪一组？", "target": "🍓🚗", "choices": ["🍓🚗", "🚗🌙", "🍌🚲"], "scene": null, "preview": ["🍓", "🚗"], "encourage": "记忆宝盒被你打开啦！" },
+    { "id": "BL-B-02", "domain": "B", "construct": "序列记忆", "basis": ["发育/智力评估"], "title": "顺序小火车", "emoji": "🚂", "mode": "memory", "prompt": "请找到刚才的顺序", "target": "🌞🌳🏠", "choices": ["🏠🌳🌞", "🌞🌳🏠", "🌳🌞🏠"], "scene": null, "preview": ["🌞", "🌳", "🏠"], "encourage": "小火车顺利到站！" },
+    { "id": "BL-B-03", "domain": "B", "construct": "工作记忆", "basis": ["发育/智力评估", "语言/沟通"], "title": "记住最后一个", "emoji": "🧠", "mode": "memory", "prompt": "刚才最后出现的是谁？", "target": "🦋", "choices": ["🐸", "🦋", "🐟"], "scene": null, "preview": ["🐟", "🐸", "🦋"], "encourage": "你把最后一个朋友记住了！" },
+    { "id": "BL-C-01", "domain": "C", "construct": "生活顺序推理", "basis": ["适应行为", "平台内置"], "title": "生活排序", "emoji": "🧩", "mode": "choice", "prompt": "准备睡觉前，接下来做什么更合适？", "target": "🪥", "choices": ["⚽", "🪥", "🎨"], "scene": "🛏️🌙", "preview": [], "encourage": "你找到了合适的下一步！" },
+    { "id": "BL-C-02", "domain": "C", "construct": "分类推理", "basis": ["发育/智力评估"], "title": "分类小能手", "emoji": "🧺", "mode": "choice", "prompt": "哪个和其他两个不是一类？", "target": "🚗", "choices": ["🍎", "🍌", "🚗"], "scene": null, "preview": [], "encourage": "分类篮整理好啦！" },
+    { "id": "BL-C-03", "domain": "C", "construct": "规律发现", "basis": ["发育/智力评估"], "title": "接着排一排", "emoji": "🔢", "mode": "choice", "prompt": "太阳、月亮、太阳，接下来是什么？", "target": "🌙", "choices": ["☀️", "🌙", "⭐"], "scene": "☀️ 🌙 ☀️ ❓", "preview": [], "encourage": "你发现了藏起来的规律！" },
+    { "id": "BL-D-01", "domain": "D", "construct": "语言理解", "basis": ["语言/沟通", "孤独症相关"], "title": "听懂小任务", "emoji": "👂", "mode": "choice", "prompt": "请点一下会飞的动物", "target": "🐦", "choices": ["🐟", "🐦", "🐢"], "scene": null, "preview": [], "encourage": "你听懂了小任务！" },
+    { "id": "BL-D-02", "domain": "D", "construct": "功能性沟通", "basis": ["语言/沟通", "孤独症相关"], "title": "需要什么呢", "emoji": "💬", "mode": "choice", "prompt": "口渴的时候，可以选择什么？", "target": "💧", "choices": ["🧸", "💧", "👟"], "scene": null, "preview": [], "encourage": "你表达了自己的需要！" },
+    { "id": "BL-D-03", "domain": "D", "construct": "句意理解", "basis": ["语言/沟通"], "title": "谁在做什么", "emoji": "📖", "mode": "choice", "prompt": "“小猫在睡觉”，请选择对应的画面", "target": "🐱💤", "choices": ["🐱💤", "🐱⚽", "🐶🍎"], "scene": null, "preview": [], "encourage": "你听懂了这句话！" },
+    { "id": "BL-E-01", "domain": "E", "construct": "情绪识别", "basis": ["孤独症相关", "行为观察"], "title": "表情猜猜看", "emoji": "😊", "mode": "choice", "prompt": "朋友送你一个礼物，可能是什么心情？", "target": "😊", "choices": ["😢", "😊", "😠"], "scene": null, "preview": [], "encourage": "你发现了表情里的心情！" },
+    { "id": "BL-E-02", "domain": "E", "construct": "社交回应", "basis": ["孤独症相关"], "title": "轮到谁啦", "emoji": "🤝", "mode": "choice", "prompt": "小朋友正在玩球，我想一起玩，可以怎么做？", "target": "🙋", "choices": ["💢", "🙋", "🏃"], "scene": null, "preview": [], "encourage": "你选择了友好的方式！" },
+    { "id": "BL-E-03", "domain": "E", "construct": "共同注意", "basis": ["孤独症相关", "行为观察"], "title": "一起看哪里", "emoji": "👉", "mode": "choice", "prompt": "朋友指着天空说“看！”，我们可以看哪里？", "target": "☁️", "choices": ["👟", "☁️", "🍽️"], "scene": "🧒👉☁️", "preview": [], "encourage": "你和朋友一起发现了天空！" },
+    { "id": "BL-F-01", "domain": "F", "construct": "生活工具使用", "basis": ["适应行为"], "title": "生活百宝箱", "emoji": "🎒", "mode": "choice", "prompt": "刷牙的时候需要哪一样？", "target": "🪥", "choices": ["🪥", "🧦", "🥄"], "scene": null, "preview": [], "encourage": "生活百宝箱准备好了！" },
+    { "id": "BL-F-02", "domain": "F", "construct": "动作模仿与完成", "basis": ["适应行为", "平台内置"], "title": "动作模仿", "emoji": "🕺", "mode": "guided", "prompt": "请先跟着做，再点“我完成了”", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "scene": "👏 🙌 👏", "preview": [], "encourage": "动作挑战完成！" },
+    { "id": "BL-F-03", "domain": "F", "construct": "生活步骤", "basis": ["适应行为"], "title": "穿衣小帮手", "emoji": "👕", "mode": "choice", "prompt": "准备出门，应该先穿哪一样？", "target": "👕", "choices": ["🛏️", "👕", "🛁"], "scene": "🚪🌤️", "preview": [], "encourage": "你准备好出门啦！" },
+    { "id": "BL-A-04", "domain": "A", "construct": "大小辨别", "basis": ["平台内置"], "title": "大小眼力", "emoji": "👀", "mode": "choice", "prompt": "请点最大的圆", "target": "●", "choices": ["·", "•", "●"], "scene": null, "preview": [], "encourage": "你认真比较了大小！" },
+    { "id": "BL-B-04", "domain": "B", "construct": "位置记忆", "basis": ["平台内置"], "title": "位置记忆", "emoji": "🧠", "mode": "memory", "prompt": "刚才看到哪个？", "target": "🏠", "choices": ["🏠", "🚗", "🌳"], "scene": null, "preview": ["🏠"], "encourage": "你记住了！" },
+    { "id": "BL-C-04", "domain": "C", "construct": "简单因果", "basis": ["平台内置"], "title": "想一想", "emoji": "🧩", "mode": "choice", "prompt": "杯子倒了会怎么样？", "target": "💧", "choices": ["💧", "☀️", "🎈"], "scene": null, "preview": [], "encourage": "你想到了结果！" },
+    { "id": "BL-D-04", "domain": "D", "construct": "词义理解", "basis": ["平台内置"], "title": "听懂词语", "emoji": "💬", "mode": "choice", "prompt": "请点可以喝的东西", "target": "🥛", "choices": ["🥛", "👟", "⚽"], "scene": null, "preview": [], "encourage": "你听懂了！" },
+    { "id": "BL-E-04", "domain": "E", "construct": "情境回应", "basis": ["平台内置"], "title": "友好回应", "emoji": "😊", "mode": "choice", "prompt": "朋友帮助了我，可以怎么做？", "target": "谢谢", "choices": ["谢谢", "抢走", "离开"], "scene": null, "preview": [], "encourage": "你选择了友好的回应！" },
+    { "id": "BL-F-04", "domain": "F", "construct": "动作完成观察", "basis": ["平台内置", "行为观察"], "title": "动作挑战", "emoji": "👐", "mode": "guided", "prompt": "跟着做：拍手、举手", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "scene": null, "preview": [], "encourage": "谢谢你完成动作！" }
+  ],
+  "moduleBank": {
+    "P01": [
+      { "id": "P01-01", "mode": "choice", "prompt": "点红色", "target": "🔴", "choices": ["🔴", "🟡", "🔵", "🟢"], "cue": "" },
+      { "id": "P01-02", "mode": "choice", "prompt": "点蓝色", "target": "🔵", "choices": ["🟠", "🟢", "🔵", "🟣"], "cue": "" },
+      { "id": "P01-03", "mode": "choice", "prompt": "点黄色", "target": "🟡", "choices": ["🟡", "🔴", "🟢", "🔵"], "cue": "" }
+    ],
+    "P02": [
+      { "id": "P02-01", "mode": "choice", "prompt": "点圆形", "target": "●", "choices": ["●", "■", "▲", "★"], "cue": "" },
+      { "id": "P02-02", "mode": "choice", "prompt": "点三角形", "target": "▲", "choices": ["◆", "▲", "●", "■"], "cue": "" },
+      { "id": "P02-03", "mode": "choice", "prompt": "点正方形", "target": "■", "choices": ["●", "★", "■", "▲"], "cue": "" }
+    ],
+    "P03": [
+      { "id": "P03-01", "mode": "choice", "prompt": "找不一样", "target": "⭐", "choices": ["🌙", "🌙", "⭐", "🌙"], "cue": "" },
+      { "id": "P03-02", "mode": "choice", "prompt": "找不一样", "target": "🍎", "choices": ["🍐", "🍐", "🍐", "🍎"], "cue": "" },
+      { "id": "P03-03", "mode": "choice", "prompt": "找不一样", "target": "🐶", "choices": ["🐱", "🐶", "🐱", "🐱"], "cue": "" }
+    ],
+    "P04": [
+      { "id": "P04-01", "mode": "audio", "prompt": "听一听，选一选", "spokenPrompt": "请点小狗", "target": "🐶", "choices": ["🐶", "🐱", "🐰", "🐼"], "cue": "" },
+      { "id": "P04-02", "mode": "audio", "prompt": "听一听，选一选", "spokenPrompt": "请点小鸟", "target": "🐦", "choices": ["🐟", "🐦", "🐢", "🐸"], "cue": "" },
+      { "id": "P04-03", "mode": "audio", "prompt": "听一听，选一选", "spokenPrompt": "请点汽车", "target": "🚗", "choices": ["🚲", "🚌", "🚗", "✈️"], "cue": "" }
+    ],
+    "M01": [
+      { "id": "M01-01", "mode": "choice", "prompt": "哪个和牙刷一起用？", "target": "🪥膏", "choices": ["🪥膏", "👟", "🚗", "🎈"], "cue": "🪥" },
+      { "id": "M01-02", "mode": "choice", "prompt": "哪个和鞋子一起穿？", "target": "🧦", "choices": ["🧦", "🥄", "🧸", "🍎"], "cue": "👟" },
+      { "id": "M01-03", "mode": "choice", "prompt": "哪个和雨天最有关系？", "target": "☂️", "choices": ["☂️", "🪥", "⚽", "📕"], "cue": "🌧️" }
+    ],
+    "M02": [
+      { "id": "M02-01", "mode": "memory", "prompt": "刚才看到哪个？", "target": "🍓", "choices": ["🍓", "🚗", "🌙", "🧸"], "preview": ["🍓"], "cue": "" },
+      { "id": "M02-02", "mode": "memory", "prompt": "刚才看到哪个？", "target": "🚲", "choices": ["🐶", "🚲", "🍌", "⭐"], "preview": ["🚲"], "cue": "" },
+      { "id": "M02-03", "mode": "memory", "prompt": "刚才看到哪个？", "target": "🌻", "choices": ["🌻", "🍎", "🚌", "🐟"], "preview": ["🌻"], "cue": "" }
+    ],
+    "M03": [
+      { "id": "M03-01", "mode": "memory", "prompt": "选出刚才的顺序", "target": "☀️🌙", "choices": ["☀️🌙", "🌙☀️", "⭐☀️", "🌙⭐"], "preview": ["☀️", "🌙"], "cue": "" },
+      { "id": "M03-02", "mode": "memory", "prompt": "选出刚才的顺序", "target": "🍎🚗", "choices": ["🚗🍎", "🍎🚗", "🍌🚲", "🚗🍌"], "preview": ["🍎", "🚗"], "cue": "" },
+      { "id": "M03-03", "mode": "memory", "prompt": "选出刚才的顺序", "target": "🐶🐟⭐", "choices": ["🐟🐶⭐", "🐶🐟⭐", "⭐🐟🐶", "🐶⭐🐟"], "preview": ["🐶", "🐟", "⭐"], "cue": "" }
+    ],
+    "M04": [
+      { "id": "M04-01", "mode": "memory", "prompt": "刚才最后一个是谁？", "target": "🦋", "choices": ["🦋", "🐟", "🐸", "🐰"], "preview": ["🐟", "🐸", "🦋"], "cue": "" },
+      { "id": "M04-02", "mode": "memory", "prompt": "刚才第一个是谁？", "target": "🍎", "choices": ["🌙", "🍎", "🚗", "⭐"], "preview": ["🍎", "🚗", "🌙"], "cue": "" },
+      { "id": "M04-03", "mode": "memory", "prompt": "刚才最后一个是谁？", "target": "🌧️", "choices": ["☀️", "🌧️", "☁️", "🌙"], "preview": ["☀️", "☁️", "🌧️"], "cue": "" }
+    ],
+    "L01": [
+      { "id": "L01-01", "mode": "spoken", "prompt": "说出它的名字", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "🍎" },
+      { "id": "L01-02", "mode": "spoken", "prompt": "说出它的名字", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "🐶" },
+      { "id": "L01-03", "mode": "spoken", "prompt": "说出它的名字", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "🚗" }
+    ],
+    "L02": [
+      { "id": "L02-01", "mode": "spoken", "prompt": "看图说一句话", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "🐱 💤" },
+      { "id": "L02-02", "mode": "spoken", "prompt": "看图说一句话", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "小朋友 ⚽" },
+      { "id": "L02-03", "mode": "spoken", "prompt": "看图说一句话", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "妈妈 🍎" }
+    ],
+    "L03": [
+      { "id": "L03-01", "mode": "audio", "prompt": "听一听，选一选", "spokenPrompt": "请点会飞的动物", "target": "🐦", "choices": ["🐦", "🐟", "🐢", "🐶"], "cue": "" },
+      { "id": "L03-02", "mode": "audio", "prompt": "听一听，选一选", "spokenPrompt": "先点水果", "target": "🍎", "choices": ["🚗", "🍎", "👟", "🐶"], "cue": "" },
+      { "id": "L03-03", "mode": "audio", "prompt": "听一听，选一选", "spokenPrompt": "请点能喝的东西", "target": "🥛", "choices": ["🥛", "🧦", "⚽", "📕"], "cue": "" }
+    ],
+    "L04": [
+      { "id": "L04-01", "mode": "choice", "prompt": "口渴了，选哪个？", "target": "💧", "choices": ["💧", "🧸", "👟", "🚗"], "cue": "" },
+      { "id": "L04-02", "mode": "choice", "prompt": "想休息，选哪个？", "target": "🛏️", "choices": ["⚽", "🛏️", "🍎", "🚲"], "cue": "" },
+      { "id": "L04-03", "mode": "choice", "prompt": "想上厕所，选哪个？", "target": "🚻", "choices": ["🚻", "🎨", "🎈", "📕"], "cue": "" }
+    ],
+    "E01": [
+      { "id": "E01-01", "mode": "choice", "prompt": "下雨出门带什么？", "target": "☂️", "choices": ["☂️", "🧢", "🪥", "🥄"], "cue": "" },
+      { "id": "E01-02", "mode": "choice", "prompt": "肚子饿了怎么办？", "target": "🍚", "choices": ["⚽", "🍚", "🛏️", "🎨"], "cue": "" },
+      { "id": "E01-03", "mode": "choice", "prompt": "天冷了穿什么？", "target": "🧥", "choices": ["🧥", "🩳", "泳圈", "扇子"], "cue": "" }
+    ],
+    "E02": [
+      { "id": "E02-01", "mode": "choice", "prompt": "哪个不是水果？", "target": "🚗", "choices": ["🍎", "🍌", "🚗", "🍓"], "cue": "" },
+      { "id": "E02-02", "mode": "choice", "prompt": "哪个不是动物？", "target": "📕", "choices": ["🐶", "🐱", "📕", "🐟"], "cue": "" },
+      { "id": "E02-03", "mode": "choice", "prompt": "哪个不是衣服？", "target": "🥄", "choices": ["👕", "🧦", "🥄", "👖"], "cue": "" }
+    ],
+    "E03": [
+      { "id": "E03-01", "mode": "choice", "prompt": "哪一组有两个？", "target": "🍎🍎", "choices": ["🍎", "🍎🍎", "🍎🍎🍎", "🍎🍎🍎🍎"], "cue": "" },
+      { "id": "E03-02", "mode": "choice", "prompt": "哪一组有三个？", "target": "⭐⭐⭐", "choices": ["⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐"], "cue": "" },
+      { "id": "E03-03", "mode": "choice", "prompt": "哪边更多？", "target": "🍌🍌🍌", "choices": ["🍌", "🍌🍌🍌"], "cue": "" }
+    ],
+    "E04": [
+      { "id": "E04-01", "mode": "choice", "prompt": "睡觉前先做什么？", "target": "🪥", "choices": ["🪥", "⚽", "🎨", "🚲"], "cue": "" },
+      { "id": "E04-02", "mode": "choice", "prompt": "洗手第一步是什么？", "target": "🚰", "choices": ["擦手", "🚰", "关灯", "穿鞋"], "cue": "" },
+      { "id": "E04-03", "mode": "choice", "prompt": "出门前先做什么？", "target": "👟", "choices": ["睡觉", "👟", "洗澡", "吃糖"], "cue": "" }
+    ],
+    "S01": [
+      { "id": "S01-01", "mode": "choice", "prompt": "收到礼物是什么心情？", "target": "😊", "choices": ["😊", "😢", "😠", "😴"], "cue": "" },
+      { "id": "S01-02", "mode": "choice", "prompt": "玩具坏了是什么心情？", "target": "😢", "choices": ["😊", "😢", "😴", "😮"], "cue": "" },
+      { "id": "S01-03", "mode": "choice", "prompt": "被抢玩具是什么心情？", "target": "😠", "choices": ["😊", "😠", "😴", "😄"], "cue": "" }
+    ],
+    "S02": [
+      { "id": "S02-01", "mode": "guided", "prompt": "和大人轮流拍手三次", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "👏 ↔️ 👏" },
+      { "id": "S02-02", "mode": "guided", "prompt": "等大人说“轮到你”再点这里", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "⏳" },
+      { "id": "S02-03", "mode": "guided", "prompt": "和大人一起看同一个东西", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "🧑 👉 ⭐" }
+    ],
+    "S03": [
+      { "id": "S03-01", "mode": "choice", "prompt": "想一起玩，可以怎么做？", "target": "🙋", "choices": ["🙋", "💢", "🏃", "🙅"], "cue": "" },
+      { "id": "S03-02", "mode": "choice", "prompt": "别人说你好，可以怎么做？", "target": "👋", "choices": ["👋", "🙈", "💢", "🏃"], "cue": "" },
+      { "id": "S03-03", "mode": "choice", "prompt": "轮到别人时，可以怎么做？", "target": "⏳", "choices": ["抢走", "⏳", "离开", "大叫"], "cue": "" }
+    ],
+    "D01": [
+      { "id": "D01-01", "mode": "choice", "prompt": "洗手第一步是什么？", "target": "🚰", "choices": ["🚰", "擦干", "关灯", "看电视"], "cue": "" },
+      { "id": "D01-02", "mode": "choice", "prompt": "穿衣第一步是什么？", "target": "👕", "choices": ["👕", "穿鞋", "出门", "睡觉"], "cue": "" },
+      { "id": "D01-03", "mode": "choice", "prompt": "吃饭前先做什么？", "target": "洗手", "choices": ["洗手", "看电视", "穿鞋", "画画"], "cue": "" }
+    ],
+    "D02": [
+      { "id": "D02-01", "mode": "choice", "prompt": "轻轻点小星星", "target": "⭐", "choices": ["🌙", "⭐", "☁️", "☀️"], "cue": "" },
+      { "id": "D02-02", "mode": "choice", "prompt": "轻轻点小花", "target": "🌼", "choices": ["🌼", "🍎", "🚗", "🐟"], "cue": "" },
+      { "id": "D02-03", "mode": "choice", "prompt": "轻轻点小球", "target": "⚽", "choices": ["🎈", "⚽", "📕", "🧸"], "cue": "" }
+    ],
+    "D03": [
+      { "id": "D03-01", "mode": "guided", "prompt": "跟着节奏拍手", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "👏  👏  👏" },
+      { "id": "D03-02", "mode": "guided", "prompt": "跟着做：举手、放下", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "🙌  ⬇️" },
+      { "id": "D03-03", "mode": "guided", "prompt": "跟着做：拍手、举手、拍手", "target": "自己完成", "choices": ["自己完成", "帮助后完成", "还没完成"], "cue": "👏 🙌 👏" }
+    ]
+  },
+  "scoringRules": {
+    "difficultyLevels": "1-5",
+    "adaptiveRule": "连对2题升1级，连错2题降1级，单次最多±1级",
+    "choiceCountByDifficulty": "难度1→2个选项；难度2→3个；难度≥3→全部",
+    "promptLevel": "无提示=0；听一遍=1；给提示=2；帮助后完成=2",
+    "supportOutcome": "independent / supported / not-completed",
+    "firstCorrect": "correct 且 promptLevel===0",
+    "baselineDomainScore": "每域按 完全独立=1 / 支持完成=0.5 / 提示=0.55 / 重复听=0.8 / 错=0 加权平均后×100"
+  }
+}

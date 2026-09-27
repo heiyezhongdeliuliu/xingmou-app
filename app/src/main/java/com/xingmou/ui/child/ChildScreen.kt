@@ -1,12 +1,12 @@
 package com.xingmou.ui.child
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -14,28 +14,33 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.xingmou.AccessibilityUiState
 import com.xingmou.ChildUiState
 import com.xingmou.BaselineUiState
+import com.xingmou.data.catalog.QuestionType
 import com.xingmou.core.domain.BaselineStatus
 import com.xingmou.ui.components.SectionSurface
 import com.xingmou.ui.components.StatusLine
@@ -43,12 +48,14 @@ import com.xingmou.ui.components.XiaoXingMark
 import com.xingmou.ui.theme.Error
 import com.xingmou.R
 
+private enum class ChildSection { TRAINING, SETTINGS }
+
 @Composable
 fun ChildScreen(
     state: ChildUiState,
     baseline: BaselineUiState,
     accessibility: AccessibilityUiState,
-    onChoice: (Boolean) -> Unit,
+    onChoice: (Int) -> Unit,
     onStartBaseline: () -> Unit,
     onResumeBaseline: () -> Unit,
     onLeaveBaseline: () -> Unit,
@@ -70,6 +77,8 @@ fun ChildScreen(
 ) {
     val context = LocalContext.current
     val speechController = remember(context) { ChildSpeechController(context) }
+    val selectedSection = remember { mutableStateOf(ChildSection.TRAINING) }
+    val selectedCourseLevel = remember { mutableStateOf<Int?>(null) }
     DisposableEffect(speechController) {
         onDispose { speechController.shutdown() }
     }
@@ -81,161 +90,351 @@ fun ChildScreen(
         if (accessibility.speechEnabled && !state.isWorking) speechController.speak(state.message)
         if (!accessibility.speechEnabled) speechController.stop()
     }
-    Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            XiaoXingMark(Modifier.size(52.dp))
-            Column {
-                Text("和小星一起练习", style = MaterialTheme.typography.headlineMedium)
-                Text("一次只做一步，随时可以休息。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+    LaunchedEffect(state.courseQuestionId, state.courseQuestionType, state.courseStimulus, accessibility.speechEnabled) {
+        if (accessibility.speechEnabled && state.courseQuestionType == QuestionType.AUDIO && state.courseStimulus.isNotBlank()) {
+            speechController.speak(state.courseStimulus)
+        }
+    }
+    Row(modifier = modifier.fillMaxSize()) {
+        NavigationRail(
+            modifier = Modifier.fillMaxHeight(),
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Text("小星", modifier = Modifier.padding(vertical = 20.dp), style = MaterialTheme.typography.titleMedium)
+            NavigationRailItem(
+                selected = selectedSection.value == ChildSection.TRAINING,
+                onClick = { selectedSection.value = ChildSection.TRAINING },
+                icon = { Text("训", style = MaterialTheme.typography.titleLarge) },
+                label = { Text("训练") },
+                alwaysShowLabel = true,
+                modifier = Modifier.semantics { contentDescription = "儿童训练界面" }
+            )
+            NavigationRailItem(
+                selected = selectedSection.value == ChildSection.SETTINGS,
+                onClick = { selectedSection.value = ChildSection.SETTINGS },
+                icon = { Text("设", style = MaterialTheme.typography.titleLarge) },
+                label = { Text("设置") },
+                alwaysShowLabel = true,
+                modifier = Modifier.semantics { contentDescription = "儿童设置界面" }
+            )
         }
 
-        BaselineCard(baseline, onStartBaseline, onResumeBaseline, onLeaveBaseline, onRestartBaseline, onBaselineAnswer)
-
-        SectionSurface(
-            title = if (state.isSafetyStopped) "先找身边的大人" else if (state.isPaused) "休息时间" else state.instruction,
-            supporting = state.message,
-            containerColor = if (state.isSafetyStopped) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (state.isSafetyStopped) {
-                Text("训练已经停止。请不要继续操作。", color = Error, style = MaterialTheme.typography.titleMedium)
-            } else if (state.isPaused) {
-                Button(
-                    onClick = onResume,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = "恢复儿童训练" },
-                    enabled = !state.isWorking
-                ) { Text(if (state.isWorking) "请稍等" else "准备好了，继续") }
-            } else if (!state.courseUnlocked) {
-                Text("完成六题起点小测后，就可以开始第一关。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton(
-                    onClick = onPause,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = "让儿童休息" },
-                    enabled = !state.isWorking
-                ) { Text("先休息") }
-            } else if (!state.courseOpen) {
-                Button(onClick = onResumeCourse, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).semantics { contentDescription = "继续第一关课程" }) {
-                    Text("继续第一关")
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                XiaoXingMark(Modifier.size(52.dp))
+                Column {
+                    Text(if (selectedSection.value == ChildSection.TRAINING) "和小星一起练习" else "儿童端设置", style = MaterialTheme.typography.headlineMedium)
+                    Text(
+                        if (selectedSection.value == ChildSection.TRAINING) "一次只做一步，随时可以休息。" else "调整小星的呈现方式和练习偏好。",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (selectedSection.value == ChildSection.TRAINING) {
+                BaselineCard(baseline, onStartBaseline, onResumeBaseline, onLeaveBaseline, onRestartBaseline, onBaselineAnswer)
+                if (selectedCourseLevel.value == null) {
+                    CourseProgressCard(
+                        state = state,
+                        onOpenLevel = { level ->
+                            selectedCourseLevel.value = level
+                            onResumeCourse()
+                        }
+                    )
+                } else {
+                    TextButton(
+                        onClick = {
+                            selectedCourseLevel.value = null
+                            onLeaveCourse()
+                        },
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "返回关卡地图" }
+                    ) { Text("← 返回关卡地图") }
+                    TrainingAnswerCard(
+                        state,
+                        onChoice,
+                        onResumeCourse,
+                        onPause,
+                        onResume,
+                        onLeaveCourse = {
+                            selectedCourseLevel.value = null
+                            onLeaveCourse()
+                        }
+                    )
                 }
             } else {
-                Text("${state.courseTitle} · 第 ${state.currentCourseLevel} 关 · ${state.courseProgress.coerceAtMost(state.courseTotal)} / ${state.courseTotal} 个活动", style = MaterialTheme.typography.labelLarge)
-                Image(
-                    painter = painterResource(assetResource(state.assetKey)),
-                    contentDescription = "训练素材：${state.courseTitle}",
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp, max = 144.dp).padding(vertical = 8.dp)
+                SupportCard(state)
+                RewardCard(state)
+                InterestCard(state, onInterestChange)
+                AccessibilityCard(
+                    accessibility = accessibility,
+                    speechController = speechController,
+                    onSpeechEnabledChange = onSpeechEnabledChange,
+                    onSpeechRateChange = onSpeechRateChange,
+                    onSpeechVolumeChange = onSpeechVolumeChange,
+                    onLargeTextChange = onLargeTextChange,
+                    onHighContrastChange = onHighContrastChange,
+                    onSlowMotionChange = onSlowMotionChange
                 )
-                if (state.courseProgress >= state.courseTotal) {
-                    Text("第一关完成了，可以休息一下。", style = MaterialTheme.typography.titleMedium)
-                } else BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val horizontal = maxWidth >= 520.dp
-                    if (horizontal) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            ChoiceButton(state.options.getOrElse(0) { "圆形" }, true, onChoice, Modifier.weight(1f), !state.isWorking)
-                            ChoiceButton(state.options.getOrElse(1) { "三角形" }, false, onChoice, Modifier.weight(1f), !state.isWorking)
-                        }
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            ChoiceButton(state.options.getOrElse(0) { "圆形" }, true, onChoice, Modifier.fillMaxWidth(), !state.isWorking)
-                            ChoiceButton(state.options.getOrElse(1) { "三角形" }, false, onChoice, Modifier.fillMaxWidth(), !state.isWorking)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrainingAnswerCard(
+    state: ChildUiState,
+    onChoice: (Int) -> Unit,
+    onResumeCourse: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onLeaveCourse: () -> Unit
+) {
+    val isMemoryQuestion = state.courseQuestionType == QuestionType.MEMORY
+    val isPreviewing = remember(state.courseQuestionId, state.courseQuestionType) {
+        mutableStateOf(isMemoryQuestion && state.courseStimulus.isNotBlank())
+    }
+    val previewRemainingMs = remember(state.courseQuestionId, state.courseQuestionType) {
+        mutableStateOf(state.coursePreviewMs.coerceAtLeast(1L))
+    }
+    LaunchedEffect(state.courseQuestionId, state.courseQuestionType, state.courseStimulus) {
+        if (!isMemoryQuestion || state.courseStimulus.isBlank()) {
+            isPreviewing.value = false
+            previewRemainingMs.value = 0L
+            return@LaunchedEffect
+        }
+        val total = state.coursePreviewMs.coerceAtLeast(1L)
+        val deadline = System.currentTimeMillis() + total
+        isPreviewing.value = true
+        while (true) {
+            val remaining = deadline - System.currentTimeMillis()
+            if (remaining <= 0L) break
+            previewRemainingMs.value = remaining
+            delay(100L)
+        }
+        previewRemainingMs.value = 0L
+        isPreviewing.value = false
+    }
+    SectionSurface(
+        title = when {
+            state.isSafetyStopped -> "先找身边的大人"
+            state.isPaused -> "休息时间"
+            isPreviewing.value -> "先记住这个示例"
+            else -> state.instruction
+        },
+        supporting = state.message,
+        containerColor = if (state.isSafetyStopped) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+    ) {
+        if (state.isSafetyStopped) {
+            Text("训练已经停止。请不要继续操作。", color = Error, style = MaterialTheme.typography.titleMedium)
+        } else if (state.isPaused) {
+            Button(
+                onClick = onResume,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = "恢复儿童训练" },
+                enabled = !state.isWorking
+            ) { Text(if (state.isWorking) "请稍等" else "准备好了，继续") }
+        } else if (!state.courseUnlocked) {
+            Text("完成六题起点小测后，就可以开始第一关。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(
+                onClick = onPause,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = "让儿童休息" },
+                enabled = !state.isWorking
+            ) { Text("先休息") }
+        } else if (!state.courseOpen) {
+            Button(onClick = onResumeCourse, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).semantics { contentDescription = "继续课程" }) {
+                Text("继续课程")
+            }
+        } else {
+            Text("${state.courseTitle} · 第 ${state.currentCourseLevel} 关 · ${state.courseProgress.coerceAtMost(state.courseTotal)} / ${state.courseTotal} 个活动", style = MaterialTheme.typography.labelLarge)
+            if (isPreviewing.value) {
+                Text("请认真看一看，${((previewRemainingMs.value + 999L) / 1000L).coerceAtLeast(1L)} 秒后开始选择。")
+                StimulusCard(state.courseStimulus, "记忆示例")
+                LinearProgressIndicator(
+                    progress = {
+                        1f - (previewRemainingMs.value.toFloat() / state.coursePreviewMs.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                )
+            } else if (state.courseProgress >= state.courseTotal) {
+                Text("课程完成了，可以休息一下。", style = MaterialTheme.typography.titleMedium)
+            } else {
+                if (!isMemoryQuestion && state.courseStimulus.isNotBlank()) {
+                    StimulusCard(state.courseStimulus, "题目示例")
+                }
+                Text(state.instruction, style = MaterialTheme.typography.titleLarge)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    state.options.withIndex().toList().chunked(2).forEach { rowOptions ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            rowOptions.forEach { (optionIndex, option) ->
+                                val buttonModifier = if (rowOptions.size == 1) Modifier.fillMaxWidth() else Modifier.weight(1f)
+                                ChoiceButton(option, optionIndex, onChoice, buttonModifier, !state.isWorking)
+                            }
                         }
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = onPause,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = "让儿童休息" },
+                enabled = !state.isWorking
+            ) { Text("先休息") }
+            TextButton(onClick = onLeaveCourse, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "暂时离开课程" }) { Text("暂时离开这一关") }
+        }
+    }
+}
+
+@Composable
+private fun StimulusCard(stimulus: String, label: String) {
+    SectionSurface(title = label, containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+        Text(
+            stimulus,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+            style = enlargedVisualStyle(MaterialTheme.typography.headlineSmall, stimulus),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+/** Emoji/图形素材需要比普通文字更大，方便儿童在模拟器和实际设备上观察。 */
+private fun enlargedVisualStyle(base: androidx.compose.ui.text.TextStyle, value: String): androidx.compose.ui.text.TextStyle =
+    if (containsVisualMaterial(value)) {
+        base.copy(fontSize = (base.fontSize.value * 5f).sp)
+    } else {
+        base
+    }
+
+private fun containsVisualMaterial(value: String): Boolean = value.any { character ->
+    Character.isSurrogate(character) ||
+        character in '\u2300'..'\u23FF' ||
+        character in '\u2600'..'\u27BF'
+}
+
+@Composable
+private fun CourseProgressCard(state: ChildUiState, onOpenLevel: (Int) -> Unit) {
+    val totalLevels = state.courseMap.size.coerceAtLeast(1)
+    val completedLevels = state.courseMap.count { it.status == "已完成" }
+    val activeLevel = state.courseMap.firstOrNull { it.status == "进行中" }?.level ?: (completedLevels + 1).coerceAtMost(totalLevels)
+    val progress = (completedLevels.toFloat() / totalLevels).coerceIn(0f, 1f)
+    SectionSurface(title = "关卡进度", supporting = "完成当前关卡后，下一关会自动解锁。") {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text("我的彩虹冒险", style = MaterialTheme.typography.titleLarge)
+                Text("已完成 $completedLevels / $totalLevels 关", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("$activeLevel / $totalLevels", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+        }
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp)
+        )
+        StatusLine("当前关卡", "第 $activeLevel 关 · ${state.courseMap.getOrNull(activeLevel - 1)?.title ?: state.courseTitle}")
+        Spacer(Modifier.height(8.dp))
+        StatusLine("活动进度", "${(state.courseProgress % 5).let { if (it == 0 && completedLevels > 0) 5 else it }} / 5")
+        Spacer(Modifier.height(8.dp))
+        Text(state.courseSummary, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(12.dp))
+        state.courseMap.forEach { level ->
+            val isOpen = level.status == "进行中"
+            val isCompleted = level.status == "已完成"
+            val label = when {
+                isCompleted -> "✓ ${level.level}. ${level.title} · 已完成"
+                isOpen -> "▶ ${level.level}. ${level.title} · 开始训练"
+                else -> "🔒 ${level.level}. ${level.title} · 待解锁"
+            }
+            if (isOpen) {
+                Button(
+                    onClick = { onOpenLevel(level.level) },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).heightIn(min = 56.dp),
+                    enabled = state.courseUnlocked && !state.isWorking
+                ) { Text(label) }
+            } else {
                 OutlinedButton(
-                    onClick = onPause,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = "让儿童休息" },
-                    enabled = !state.isWorking
-                ) { Text("先休息") }
-                TextButton(onClick = onLeaveCourse, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "暂时离开第一关" }) { Text("暂时离开这一关") }
+                    onClick = {},
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).heightIn(min = 52.dp),
+                    enabled = false
+                ) { Text(label) }
             }
         }
+    }
+}
 
-        SectionSurface(title = "今天的支持", containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-            StatusLine("难度", "第 ${state.difficulty} 级")
-            Spacer(Modifier.height(8.dp))
-            StatusLine("支持", state.supportLevel.name)
-            Spacer(Modifier.height(8.dp))
-            StatusLine("最近状态", state.lastEvent)
-            Spacer(Modifier.height(8.dp))
-            StatusLine("课程记录", state.courseSummary)
-            Text(
-                "这里不展示分数和排名，只记录下一步需要多少支持。",
-                modifier = Modifier.padding(top = 16.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Start,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+@Composable
+private fun SupportCard(state: ChildUiState) {
+    SectionSurface(title = "今天的支持", containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+        StatusLine("难度", "第 ${state.difficulty} 级")
+        Spacer(Modifier.height(8.dp))
+        StatusLine("支持", state.supportLevel.name)
+        Spacer(Modifier.height(8.dp))
+        StatusLine("最近状态", state.lastEvent)
+        Spacer(Modifier.height(8.dp))
+        Text("这里不展示分数和排名，只记录下一步需要多少支持。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
 
-        SectionSurface(title = "我的小星星", supporting = "这里只记录练习过程中的鼓励，不用于比较或排名。") {
-            StatusLine("小星星", "${state.coursePoints} 颗")
-            Spacer(Modifier.height(8.dp))
-            StatusLine("完成轮数", "${state.completedRounds} 轮")
-            Spacer(Modifier.height(8.dp))
-            StatusLine("最近感觉", state.encouragementTrend)
-            Text(
-                state.rewardMessage,
-                modifier = Modifier.padding(top = 12.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+@Composable
+private fun RewardCard(state: ChildUiState) {
+    SectionSurface(title = "我的小星星", supporting = "这里只记录练习过程中的鼓励，不用于比较或排名。") {
+        StatusLine("小星星", "${state.coursePoints} 颗")
+        Spacer(Modifier.height(8.dp))
+        StatusLine("完成轮数", "${state.completedRounds} 轮")
+        Spacer(Modifier.height(8.dp))
+        StatusLine("最近感觉", state.encouragementTrend)
+        Text(state.rewardMessage, modifier = Modifier.padding(top = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
 
-        SectionSurface(title = "我喜欢的主题", supporting = "主题只用来调整示例素材，不改变训练目标。") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.interestOptions.forEach { option ->
-                    OutlinedButton(onClick = { onInterestChange(option) }, enabled = option != state.interest) {
-                        Text(option)
-                    }
-                }
-            }
-            Text("当前主题：${state.interest}", modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-
-        SectionSurface(title = "课程地图（20关）", supporting = "当前先开放第一关，其余关卡会在内容审核完成后逐步开放。") {
-            state.courseMap.forEach { level ->
-                Text(
-                    "${level.level}. ${level.title} · ${level.status}",
-                    modifier = Modifier.padding(vertical = 3.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (level.status == "待补齐") MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-                )
+@Composable
+private fun InterestCard(state: ChildUiState, onInterestChange: (String) -> Unit) {
+    SectionSurface(title = "我喜欢的主题", supporting = "主题只用来调整示例素材，不改变训练目标。") {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.interestOptions.forEach { option ->
+                OutlinedButton(onClick = { onInterestChange(option) }, enabled = option != state.interest) { Text(option) }
             }
         }
+        Text("当前主题：${state.interest}", modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
 
-        SectionSurface(title = "辅助设置", supporting = "设置只保存在本机，用来调整小星的呈现方式。") {
-            SettingRow("小星朗读", "朗读儿童端短句", accessibility.speechEnabled) { onSpeechEnabledChange(it) }
-            Spacer(Modifier.height(8.dp))
-            Text("语速：${"%.2f".format(accessibility.speechRate)}", style = MaterialTheme.typography.bodyMedium)
-            Slider(
-                value = accessibility.speechRate,
-                onValueChange = onSpeechRateChange,
-                onValueChangeFinished = {
-                    if (accessibility.speechEnabled) speechController.speak("小星会用这个速度说话。")
-                },
-                valueRange = 0.75f..1.25f,
-                steps = 4,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text("音量：${(accessibility.speechVolume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
-            Slider(
-                value = accessibility.speechVolume,
-                onValueChange = onSpeechVolumeChange,
-                onValueChangeFinished = {
-                    if (accessibility.speechEnabled) speechController.speak("这是现在的朗读音量。")
-                },
-                valueRange = 0.5f..1.0f,
-                steps = 4,
-                modifier = Modifier.fillMaxWidth()
-            )
-            SettingRow("大字体", "增加界面文字大小", accessibility.largeText) { onLargeTextChange(it) }
-            Spacer(Modifier.height(8.dp))
-            SettingRow("高对比", "提高文字与表面的对比度", accessibility.highContrast) { onHighContrastChange(it) }
-            Spacer(Modifier.height(8.dp))
-            SettingRow("慢动效", "放慢页面变化，给更多反应时间", accessibility.slowMotion) { onSlowMotionChange(it) }
-        }
+@Composable
+private fun AccessibilityCard(
+    accessibility: AccessibilityUiState,
+    speechController: ChildSpeechController,
+    onSpeechEnabledChange: (Boolean) -> Unit,
+    onSpeechRateChange: (Float) -> Unit,
+    onSpeechVolumeChange: (Float) -> Unit,
+    onLargeTextChange: (Boolean) -> Unit,
+    onHighContrastChange: (Boolean) -> Unit,
+    onSlowMotionChange: (Boolean) -> Unit
+) {
+    SectionSurface(title = "辅助设置", supporting = "设置只保存在本机，用来调整小星的呈现方式。") {
+        SettingRow("小星朗读", "朗读儿童端短句", accessibility.speechEnabled) { onSpeechEnabledChange(it) }
+        Spacer(Modifier.height(8.dp))
+        Text("语速：${"%.2f".format(accessibility.speechRate)}", style = MaterialTheme.typography.bodyMedium)
+        Slider(
+            value = accessibility.speechRate,
+            onValueChange = onSpeechRateChange,
+            onValueChangeFinished = { if (accessibility.speechEnabled) speechController.speak("小星会用这个速度说话。") },
+            valueRange = 0.75f..1.25f,
+            steps = 4,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text("音量：${(accessibility.speechVolume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
+        Slider(
+            value = accessibility.speechVolume,
+            onValueChange = onSpeechVolumeChange,
+            onValueChangeFinished = { if (accessibility.speechEnabled) speechController.speak("这是现在的朗读音量。") },
+            valueRange = 0.5f..1.0f,
+            steps = 4,
+            modifier = Modifier.fillMaxWidth()
+        )
+        SettingRow("大字体", "增加界面文字大小", accessibility.largeText) { onLargeTextChange(it) }
+        Spacer(Modifier.height(8.dp))
+        SettingRow("高对比", "提高文字与表面的对比度", accessibility.highContrast) { onHighContrastChange(it) }
+        Spacer(Modifier.height(8.dp))
+        SettingRow("慢动效", "放慢页面变化，给更多反应时间", accessibility.slowMotion) { onSlowMotionChange(it) }
     }
 }
 
@@ -260,6 +459,32 @@ private fun BaselineCard(
     onRestart: () -> Unit,
     onAnswer: (Int) -> Unit
 ) {
+    val question = state.question
+    val isMemoryQuestion = question?.type == QuestionType.MEMORY
+    val isPreviewing = remember(question?.id, state.isOpen, state.status) {
+        mutableStateOf(state.isOpen && isMemoryQuestion && question?.stimulus?.isNotBlank() == true)
+    }
+    val previewRemainingMs = remember(question?.id, state.isOpen, state.status) {
+        mutableStateOf(question?.previewMs?.coerceAtLeast(1L) ?: 1L)
+    }
+    LaunchedEffect(question?.id, state.isOpen, state.status) {
+        if (!state.isOpen || !isMemoryQuestion || question?.stimulus.isNullOrBlank()) {
+            isPreviewing.value = false
+            previewRemainingMs.value = 0L
+            return@LaunchedEffect
+        }
+        val total = question.previewMs.coerceAtLeast(1L)
+        val deadline = System.currentTimeMillis() + total
+        isPreviewing.value = true
+        while (true) {
+            val remaining = deadline - System.currentTimeMillis()
+            if (remaining <= 0L) break
+            previewRemainingMs.value = remaining
+            delay(100L)
+        }
+        previewRemainingMs.value = 0L
+        isPreviewing.value = false
+    }
     SectionSurface(
         title = "六题起点小测",
         supporting = state.message,
@@ -276,18 +501,30 @@ private fun BaselineCard(
                     Text("继续基线")
                 }
             } else {
-                state.question?.let { question ->
+                question?.let { question ->
                     Text("${state.currentIndex + 1} / ${state.totalCount}", style = MaterialTheme.typography.labelLarge)
-                    Text(question.prompt, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 8.dp))
-                    question.options.forEachIndexed { index, option ->
-                        OutlinedButton(
-                            onClick = { onAnswer(index) },
-                            enabled = !state.isWorking,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).semantics { contentDescription = "回答起点小测：$option" }
-                        ) { Text(option) }
-                        Spacer(Modifier.height(8.dp))
+                    if (isPreviewing.value) {
+                        Text("请记住下面的示例，${((previewRemainingMs.value + 999L) / 1000L).coerceAtLeast(1L)} 秒后开始选择。")
+                        StimulusCard(question.stimulus, "记忆示例")
+                        LinearProgressIndicator(
+                            progress = {
+                                1f - (previewRemainingMs.value.toFloat() / question.previewMs.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                        )
+                    } else {
+                        Text(question.prompt, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 8.dp))
+                        if (!isMemoryQuestion && question.stimulus.isNotBlank()) StimulusCard(question.stimulus, "题目示例")
+                        question.options.forEachIndexed { index, option ->
+                            OutlinedButton(
+                                onClick = { onAnswer(index) },
+                                enabled = !state.isWorking,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = if (containsVisualMaterial(option)) 180.dp else 56.dp).semantics { contentDescription = "回答起点小测：$option" }
+                            ) { Text(option, style = enlargedVisualStyle(MaterialTheme.typography.titleMedium, option)) }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        TextButton(onClick = onLeave, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "暂时离开六题起点小测" }) { Text("暂时离开基线") }
                     }
-                    TextButton(onClick = onLeave, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "暂时离开六题起点小测" }) { Text("暂时离开基线") }
                 }
             }
             BaselineStatus.COMPLETED -> {
@@ -317,12 +554,12 @@ private fun SettingRow(title: String, supporting: String, checked: Boolean, onCh
 }
 
 @Composable
-private fun ChoiceButton(label: String, correct: Boolean, onChoice: (Boolean) -> Unit, modifier: Modifier, enabled: Boolean) {
+private fun ChoiceButton(label: String, optionIndex: Int, onChoice: (Int) -> Unit, modifier: Modifier, enabled: Boolean) {
     OutlinedButton(
-        onClick = { onChoice(correct) },
-        modifier = modifier.heightIn(min = 76.dp).semantics { contentDescription = "选择$label" },
+        onClick = { onChoice(optionIndex) },
+        modifier = modifier.heightIn(min = if (containsVisualMaterial(label)) 180.dp else 76.dp).semantics { contentDescription = "选择$label" },
         enabled = enabled
     ) {
-        Text(label, style = MaterialTheme.typography.titleLarge)
+        Text(label, style = enlargedVisualStyle(MaterialTheme.typography.titleLarge, label))
     }
 }

@@ -9,6 +9,7 @@ import com.xingmou.core.domain.PlanStatus
 import com.xingmou.core.domain.TrainingResult
 import com.xingmou.core.domain.BaselineStatus
 import com.xingmou.data.catalog.QuestionDefinition
+import com.xingmou.data.catalog.QuestionType
 import com.xingmou.core.model.Port
 import com.xingmou.core.model.SupportLevel
 
@@ -70,13 +71,16 @@ fun normalizeSpeechRate(rate: Float): Float = rate.coerceIn(0.75f, 1.25f)
 fun normalizeSpeechVolume(volume: Float): Float = volume.coerceIn(0.5f, 1.0f)
 
 data class ChildUiState(
-    val instruction: String = "找到圆形",
-    val options: List<String> = listOf("圆形", "三角形"),
+    val instruction: String = "找到目标图形",
+    val options: List<String> = listOf("●", "▲"),
     val courseProgress: Int = 0,
     val courseTotal: Int = 5,
     val currentCourseLevel: Int = 1,
     val courseTitle: String = "图片配对",
     val courseQuestionId: String? = null,
+    val courseQuestionType: QuestionType = QuestionType.CHOICE,
+    val courseStimulus: String = "",
+    val coursePreviewMs: Long = 3_000L,
     val assetKey: String = "training_star",
     val courseUnlocked: Boolean = false,
     val courseOpen: Boolean = true,

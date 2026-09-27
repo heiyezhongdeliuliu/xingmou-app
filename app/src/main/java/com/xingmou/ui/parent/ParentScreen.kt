@@ -46,9 +46,9 @@ fun ParentScreen(
     onPauseTask: () -> Unit,
     onAdvanceDemo: () -> Unit,
     onMoodChange: (String) -> Unit,
-    onFatigueChange: (String) -> Unit,
     onFeedbackNoteChange: (String) -> Unit,
     onSubmitFeedback: () -> Unit,
+    onSubmitObservation: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val selectedSection = remember { mutableStateOf(ParentSection.COMPANIONSHIP) }
@@ -94,12 +94,16 @@ fun ParentScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             when (selectedSection.value) {
-                ParentSection.COMPANIONSHIP -> HomeTaskPanel(
-                    state, onCompleteTask, onSkipTask, onPauseTask, onAdvanceDemo,
-                    onMoodChange, onFatigueChange, onFeedbackNoteChange, onSubmitFeedback
-                )
+                ParentSection.COMPANIONSHIP -> {
+                    HomeTaskPanel(
+                        state, onCompleteTask, onSkipTask, onPauseTask, onAdvanceDemo,
+                        onMoodChange, onFeedbackNoteChange, onSubmitFeedback
+                    )
+                    ReminderPanel()
+                }
                 ParentSection.DATA -> {
                     ParentProfileCard(state.profile)
+                    ParentTrainingStatsCard(state)
                     SectionSurface(title = "本周家庭回顾", supporting = "只汇总当前儿童最近 7 天的本地记录。") {
                         StatusLine("任务完成率", state.weekCompletionRate)
                         Spacer(Modifier.height(8.dp))
@@ -112,12 +116,12 @@ fun ParentScreen(
                         val wide = maxWidth >= 860.dp
                         if (wide) {
                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                ObservationPanel(state, onQueryChange, onAsk, Modifier.weight(1.08f))
+                                ObservationPanel(state, onQueryChange, onAsk, onSubmitObservation, Modifier.weight(1.08f))
                                 ResultPanel(state, Modifier.weight(0.92f))
                             }
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                ObservationPanel(state, onQueryChange, onAsk, Modifier.fillMaxWidth())
+                                ObservationPanel(state, onQueryChange, onAsk, onSubmitObservation, Modifier.fillMaxWidth())
                                 ResultPanel(state, Modifier.fillMaxWidth())
                             }
                         }
@@ -140,7 +144,6 @@ private fun HomeTaskPanel(
     onPause: () -> Unit,
     onAdvanceDemo: () -> Unit,
     onMoodChange: (String) -> Unit,
-    onFatigueChange: (String) -> Unit,
     onNoteChange: (String) -> Unit,
     onSubmit: () -> Unit
 ) {
@@ -171,8 +174,7 @@ private fun HomeTaskPanel(
         ) { Text(if (state.homeDemoStep >= 4) "重新开始示范" else "完成本步") }
         HorizontalDivider(Modifier.padding(vertical = 14.dp))
         Text("今天的状态", style = MaterialTheme.typography.titleMedium)
-        ChoiceRow("心情", listOf("平稳", "兴奋", "抗拒"), state.feedbackMood, onMoodChange)
-        ChoiceRow("疲劳", listOf("不确定", "较少", "明显"), state.feedbackFatigue, onFatigueChange)
+        ChoiceRow("今日状态", listOf("状态平稳", "睡眠不足", "情绪波动", "配合度较高"), state.feedbackMood, onMoodChange)
         OutlinedTextField(
             value = state.feedbackNote,
             onValueChange = onNoteChange,
@@ -225,7 +227,7 @@ private fun homeStatusLabel(status: String): String = when (status) {
 }
 
 @Composable
-private fun ObservationPanel(state: ParentUiState, onQueryChange: (String) -> Unit, onAsk: () -> Unit, modifier: Modifier) {
+private fun ObservationPanel(state: ParentUiState, onQueryChange: (String) -> Unit, onAsk: () -> Unit, onSubmitObservation: () -> Unit, modifier: Modifier) {
     SectionSurface(title = "写下观察", supporting = "建议包含发生场景、持续时间和孩子当时的状态。", modifier = modifier) {
         OutlinedTextField(
             value = state.query,
@@ -240,6 +242,9 @@ private fun ObservationPanel(state: ParentUiState, onQueryChange: (String) -> Un
         Spacer(Modifier.height(12.dp))
         Button(onClick = onAsk, modifier = Modifier.fillMaxWidth().height(52.dp), enabled = !state.isWorking) {
             Text(if (state.isWorking) "正在检索" else "检索支持建议")
+        }
+        OutlinedButton(onClick = onSubmitObservation, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), enabled = !state.isWorking) {
+            Text("提交家庭观察给专业人员")
         }
         if (state.isWorking) {
             LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
@@ -306,5 +311,58 @@ private fun ParentProfileCard(profile: RainbowProfileUi) {
         }
         Spacer(Modifier.height(10.dp))
         Text("平台原创训练起点画像，不等同于标准化量表或医学诊断。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ParentTrainingStatsCard(state: ParentUiState) {
+    SectionSurface(title = "六域训练概览", supporting = "来自当前儿童的本地训练记录，展示练习量与正确率。") {
+        state.domainOverview.forEachIndexed { index, domain ->
+            if (index > 0) HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                Text(domain.emoji, style = MaterialTheme.typography.headlineSmall)
+                Column(Modifier.weight(1f)) {
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text(domain.name, style = MaterialTheme.typography.titleSmall)
+                        Text(if (domain.count == 0) "暂无记录" else "正确率 ${domain.accuracy}% · ${domain.count} 次", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    LinearProgressIndicator(
+                        progress = { domain.accuracy / 100f },
+                        color = domainBarColor(domain.colorKey),
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                    )
+                }
+            }
+        }
+        HorizontalDivider(Modifier.padding(vertical = 14.dp))
+        Text("正确率走势", style = MaterialTheme.typography.titleMedium)
+        Text("按训练记录时间分段，仅用于回看过程变化。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (state.trendPoints.isEmpty()) {
+            Text("暂无足够记录生成趋势。", modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else state.trendPoints.forEach { point ->
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("第${point.label}段", modifier = Modifier.weight(0.22f), style = MaterialTheme.typography.labelMedium)
+                LinearProgressIndicator(progress = { point.accuracy }, modifier = Modifier.weight(0.55f).padding(top = 3.dp))
+                Text("${(point.accuracy * 100).toInt()}% · ${point.sampleCount}条", modifier = Modifier.weight(0.23f), style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        HorizontalDivider(Modifier.padding(vertical = 14.dp))
+        Text("最近训练记录", style = MaterialTheme.typography.titleMedium)
+        if (state.recentTrainingDetails.isEmpty()) {
+            Text("暂无训练记录。", modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else state.recentTrainingDetails.forEachIndexed { index, detail ->
+            if (index > 0) HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            Text("${java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(detail.timestamp))} · ${detail.domain}/${detail.task}", style = MaterialTheme.typography.titleSmall)
+            Text("${detail.result} · ${detail.support} · 反应时 ${detail.reaction}", modifier = Modifier.padding(top = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun ReminderPanel() {
+    SectionSurface(title = "训练提醒", supporting = "帮助建立短时、可停止的练习节奏。") {
+        Text("建议短时高频：每次 5–10 分钟，在孩子状态稳定时进行。", modifier = Modifier.padding(bottom = 6.dp))
+        Text("出现疲劳、拒绝或情绪波动时暂停，不必追求一次完成。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("当前原型不发送系统推送，提醒仅作为安排参考。", modifier = Modifier.padding(top = 6.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

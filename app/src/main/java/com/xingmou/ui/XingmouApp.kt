@@ -456,9 +456,9 @@ private fun PortContent(viewModel: XingmouViewModel, port: Port, modifier: Modif
             onPauseTask = viewModel::pauseHomeTask,
             onAdvanceDemo = viewModel::advanceHomeDemo,
             onMoodChange = viewModel::updateFeedbackMood,
-            onFatigueChange = viewModel::updateFeedbackFatigue,
             onFeedbackNoteChange = viewModel::updateFeedbackNote,
             onSubmitFeedback = viewModel::submitHomeFeedback,
+            onSubmitObservation = viewModel::submitParentObservation,
             modifier = modifier
         )
         Port.PROFESSIONAL -> ProfessionalScreen(

@@ -1149,10 +1149,6 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
         _uiState.update { it.copy(parent = it.parent.copy(feedbackMood = value)) }
     }
 
-    fun updateFeedbackFatigue(value: String) {
-        _uiState.update { it.copy(parent = it.parent.copy(feedbackFatigue = value)) }
-    }
-
     fun updateFeedbackNote(value: String) {
         _uiState.update { it.copy(parent = it.parent.copy(feedbackNote = value.take(240))) }
     }
@@ -1197,11 +1193,31 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
             database.homeFeedbackDao().insert(
                 HomeFeedbackEntity(
                     feedbackId = newId("feedback"), childId = childId, taskId = task?.taskId,
-                    mood = parent.feedbackMood, fatigue = parent.feedbackFatigue,
+                    mood = parent.feedbackMood, fatigue = "",
                     note = parent.feedbackNote.trim(), createdAt = System.currentTimeMillis()
                 )
             )
             _uiState.update { it.copy(parent = it.parent.copy(feedbackMessage = "观察已保存到当前儿童档案。", feedbackNote = "")) }
+        }
+    }
+
+    /** 工作台「写下观察」补充的提交入口：把观察文本作为家庭观察提交给专业人员查看。 */
+    fun submitParentObservation() {
+        val parent = _uiState.value.parent
+        val text = parent.query.trim()
+        if (text.isBlank()) {
+            _uiState.update { it.copy(parent = it.parent.copy(message = "请先写下一个具体观察。")) }
+            return
+        }
+        viewModelScope.launch {
+            database.homeFeedbackDao().insert(
+                HomeFeedbackEntity(
+                    feedbackId = newId("observation"), childId = childId, taskId = null,
+                    mood = "", fatigue = "",
+                    note = text, createdAt = System.currentTimeMillis()
+                )
+            )
+            _uiState.update { it.copy(parent = it.parent.copy(message = "家庭观察已提交，专业人员可在家庭反馈中查看。", query = "")) }
         }
     }
 
@@ -1311,10 +1327,11 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
                 homeTaskSafetyStopped = safetyStopped,
                 homeDemoStep = task.demoStep.coerceIn(0, HOME_DEMO_STEPS.lastIndex),
                 weekCompletionRate = weekRate,
-                weekStatusSummary = latestFeedback?.let { "最近：心情 ${it.mood} · 疲劳 ${it.fatigue}" } ?: "本周还没有状态日记",
+                weekStatusSummary = latestFeedback?.let { "最近状态：${it.mood}" } ?: "本周还没有状态日记",
                 weekSuggestion = when {
                     safetyStopped -> "当前有安全暂停标记，请先联系专业人员确认。"
-                    latestFeedback?.fatigue == "明显" -> "下一次可以缩短时长，优先让孩子恢复。"
+                    latestFeedback?.mood == "睡眠不足" -> "注意休息和睡眠节律，下一次可适当缩短时长。"
+                    latestFeedback?.mood == "情绪波动" -> "下一次以安抚为主，优先让孩子恢复平静。"
                     completed > 0 -> "保持短时、可停止的练习节奏。"
                     else -> "完成一次短时任务后，再记录孩子当时的状态。"
                 }
@@ -1763,6 +1780,17 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
                         reaction = item.reactionMs?.let { "$it ms" } ?: "—"
                     )
                 }
+                val domainOverview = DomainCatalog.all.map { domain ->
+                    val group = records.filter { it.domain == domain.id }
+                    ParentDomainStatUi(
+                        id = domain.id,
+                        name = domain.name,
+                        emoji = domainEmoji(domain.id),
+                        colorKey = domain.displayColor,
+                        accuracy = if (group.isEmpty()) 0 else group.count { it.correct } * 100 / group.size,
+                        count = group.size
+                    )
+                }
                 if (latestPlan != null && latestPlan.status in setOf("draft", "confirmed") && review != null) {
                     activePlan = latestPlan
                     activeReview = review
@@ -1772,7 +1800,12 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
                 }
                 _uiState.update {
                     it.copy(
-                        parent = it.parent.copy(recordCount = records.size),
+                        parent = it.parent.copy(
+                            recordCount = records.size,
+                            domainOverview = domainOverview,
+                            trendPoints = trendPoints,
+                            recentTrainingDetails = trainingDetails
+                        ),
                         professional = it.professional.copy(
                             recordCount = analysis.sampleCount,
                             dataSufficient = analysis.dataSufficient,

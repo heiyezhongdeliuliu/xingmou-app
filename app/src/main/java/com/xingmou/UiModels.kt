@@ -188,6 +188,16 @@ fun ChildUiState.apply(decision: AgentEventDecision): ChildUiState = copy(
     lastEvent = decision.event.eventType
 )
 
+/** 家长端「六域训练概览」单域统计：练习量 + 正确率。 */
+data class ParentDomainStatUi(
+    val id: String,
+    val name: String,
+    val emoji: String,
+    val colorKey: String,
+    val accuracy: Int,
+    val count: Int
+)
+
 data class ParentUiState(
     val query: String = "",
     val route: KnowledgeRoute? = null,
@@ -197,6 +207,9 @@ data class ParentUiState(
     val recordCount: Int = 0,
     val riskLabel: String = "未评估",
     val profile: RainbowProfileUi = RainbowProfileUi(),
+    val domainOverview: List<ParentDomainStatUi> = emptyList(),
+    val trendPoints: List<ReportTrendPointUi> = emptyList(),
+    val recentTrainingDetails: List<TrainingDetailUi> = emptyList(),
     val isWorking: Boolean = false,
     val agentRunId: String? = null,
     val agentStatus: String = "本地待命",
@@ -213,8 +226,7 @@ data class ParentUiState(
     val weekStatusSummary: String = "本周状态等待记录",
     val weekSuggestion: String = "完成一次短时任务后，再记录孩子当时的状态。",
     val homeDemoStep: Int = 0,
-    val feedbackMood: String = "平稳",
-    val feedbackFatigue: String = "不确定",
+    val feedbackMood: String = "状态平稳",
     val feedbackNote: String = "",
     val feedbackMessage: String = "记录今天的状态，帮助下一次安排支持。"
 )

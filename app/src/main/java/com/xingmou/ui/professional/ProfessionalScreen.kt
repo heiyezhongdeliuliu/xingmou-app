@@ -136,7 +136,12 @@ private fun HomeFeedbackPanel(state: ProfessionalUiState) {
         } else {
             state.recentHomeFeedback.forEach { feedback ->
                 Text("${java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(feedback.createdAt))} · ${feedback.taskTitle}", style = MaterialTheme.typography.labelMedium)
-                Text("心情：${feedback.mood} · 疲劳：${feedback.fatigue}${feedback.note.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""}", modifier = Modifier.padding(bottom = 10.dp))
+                val parts = buildList {
+                    if (feedback.mood.isNotBlank()) add("状态：${feedback.mood}")
+                    if (feedback.fatigue.isNotBlank()) add("疲劳：${feedback.fatigue}")
+                    if (feedback.note.isNotBlank()) add(feedback.note)
+                }
+                Text(parts.joinToString(" · "), modifier = Modifier.padding(bottom = 10.dp))
             }
         }
     }

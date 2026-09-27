@@ -66,6 +66,7 @@ import com.xingmou.data.db.LocalUserEntity
 import com.xingmou.data.catalog.QuestionCatalog
 import com.xingmou.data.catalog.CurriculumCatalog
 import com.xingmou.data.catalog.CurriculumCatalog.GeneratedCurriculumLevel
+import com.xingmou.data.catalog.DomainCatalog
 import com.xingmou.data.catalog.AssessmentCatalog
 import com.xingmou.BaselineUiState
 import com.xingmou.ReportMetricUi
@@ -603,7 +604,57 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
             ))
         }
         loadCurriculumState(childId)
+        loadRainbowProfile(childId)
         refreshCurriculumMap()
+    }
+
+    private fun domainEmoji(id: String): String = when (id) {
+        "A" -> "👀"; "B" -> "🧠"; "C" -> "🧩"; "D" -> "💬"; "E" -> "😊"; "F" -> "👐"
+        else -> "⭐"
+    }
+
+    /** 复刻 Web 端 SafeProfileEngine 的离线鼓励叙述：最弱项作为「先练」方向，最强项作为「好办法」。 */
+    private fun childNarrative(scores: Map<String, Int>): String {
+        val entries = scores.entries.sortedByDescending { it.value }
+        if (entries.isEmpty()) return "你的游戏足迹已经保存，我们会按你的节奏安排下一次训练。"
+        val strongest = DomainCatalog.find(entries.first().key)?.name ?: "游戏"
+        val gentle = DomainCatalog.find(entries.last().key)?.name ?: "游戏"
+        return "你在${strongest}小游戏里找到了自己的好办法！接下来我们会从轻松的${gentle}游戏开始，慢慢玩、慢慢进步，每一次尝试都值得一颗星星。"
+    }
+
+    /** 从最新 ability_profiles 记录构建儿童端「我的彩虹画像」（本地安全叙述，不调用外网）。 */
+    private suspend fun loadRainbowProfile(scopedChildId: String) {
+        val profile = database.abilityProfileDao().latestForChild(scopedChildId)
+        val ui = if (profile == null) {
+            RainbowProfileUi()
+        } else {
+            val rawScores = runCatching {
+                com.google.gson.Gson().fromJson<Map<String, Double>>(
+                    profile.scoresJson,
+                    object : com.google.gson.reflect.TypeToken<Map<String, Double>>() {}.type
+                )
+            }.getOrNull() ?: emptyMap()
+            val scores = rawScores.mapValues { it.value.toInt().coerceIn(0, 100) }
+            val createdLabel = runCatching {
+                SimpleDateFormat("yyyy年M月d日", Locale.CHINA).format(Date(profile.createdAt))
+            }.getOrDefault("最近")
+            RainbowProfileUi(
+                present = true,
+                domainBars = listOf("A", "B", "C", "D", "E", "F").map { id ->
+                    val domain = DomainCatalog.find(id)
+                    RainbowDomainUi(
+                        id = id,
+                        name = domain?.name ?: id,
+                        emoji = domainEmoji(id),
+                        colorKey = domain?.displayColor ?: "slate",
+                        score = scores[id] ?: 0
+                    )
+                },
+                narrative = childNarrative(scores),
+                createdLabel = createdLabel
+            )
+        }
+        _uiState.update { it.copy(child = it.child.copy(rainbowProfile = ui)) }
     }
 
     private fun publishBaseline(isOpen: Boolean = _uiState.value.baseline.isOpen) {

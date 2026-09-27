@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,7 @@ import com.xingmou.CurriculumLevelStatus
 import com.xingmou.CurriculumLevelUi
 import com.xingmou.CurriculumMapUi
 import com.xingmou.CurriculumPlayerUi
+import com.xingmou.RainbowProfileUi
 import com.xingmou.data.catalog.QuestionType
 import com.xingmou.core.domain.BaselineStatus
 import com.xingmou.ui.components.SectionSurface
@@ -52,7 +54,7 @@ import com.xingmou.ui.components.XiaoXingMark
 import com.xingmou.ui.theme.Error
 import com.xingmou.R
 
-private enum class ChildSection { TRAINING, SETTINGS }
+private enum class ChildSection { TRAINING, PROFILE, SETTINGS }
 
 @Composable
 fun ChildScreen(
@@ -122,6 +124,14 @@ fun ChildScreen(
                 modifier = Modifier.semantics { contentDescription = "儿童训练界面" }
             )
             NavigationRailItem(
+                selected = selectedSection.value == ChildSection.PROFILE,
+                onClick = { selectedSection.value = ChildSection.PROFILE },
+                icon = { Text("画", style = MaterialTheme.typography.titleLarge) },
+                label = { Text("画报") },
+                alwaysShowLabel = true,
+                modifier = Modifier.semantics { contentDescription = "我的彩虹画像数据画报" }
+            )
+            NavigationRailItem(
                 selected = selectedSection.value == ChildSection.SETTINGS,
                 onClick = { selectedSection.value = ChildSection.SETTINGS },
                 icon = { Text("设", style = MaterialTheme.typography.titleLarge) },
@@ -138,9 +148,20 @@ fun ChildScreen(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 XiaoXingMark(Modifier.size(52.dp))
                 Column {
-                    Text(if (selectedSection.value == ChildSection.TRAINING) "和小星一起练习" else "儿童端设置", style = MaterialTheme.typography.headlineMedium)
                     Text(
-                        if (selectedSection.value == ChildSection.TRAINING) "一次只做一步，随时可以休息。" else "调整小星的呈现方式和练习偏好。",
+                        when (selectedSection.value) {
+                            ChildSection.TRAINING -> "和小星一起练习"
+                            ChildSection.PROFILE -> "我的彩虹画像"
+                            ChildSection.SETTINGS -> "儿童端设置"
+                        },
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        when (selectedSection.value) {
+                            ChildSection.TRAINING -> "一次只做一步，随时可以休息。"
+                            ChildSection.PROFILE -> "这是小星的游戏足迹，不是考试分数。"
+                            ChildSection.SETTINGS -> "调整小星的呈现方式和练习偏好。"
+                        },
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -180,6 +201,8 @@ fun ChildScreen(
                         }
                     )
                 }
+            } else if (selectedSection.value == ChildSection.PROFILE) {
+                RainbowProfileCard(state.rainbowProfile)
             } else {
                 SupportCard(state)
                 RewardCard(state)
@@ -422,6 +445,51 @@ private fun InterestCard(state: ChildUiState, onInterestChange: (String) -> Unit
         }
         Text("当前主题：${state.interest}", modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+@Composable
+private fun RainbowProfileCard(profile: RainbowProfileUi) {
+    if (!profile.present) {
+        SectionSurface(title = "🌈 我的彩虹画像", supporting = "完成六题起点小测后，会在这里生成你的彩虹画像。") {
+            Text("先和小星做几个小游戏吧，画像会在这里等你。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+    SectionSurface(title = "🌈 我的彩虹画像", supporting = "生成于 ${profile.createdLabel}") {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            profile.domainBars.forEach { bar ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(bar.emoji, style = enlargedVisualStyle(MaterialTheme.typography.headlineSmall, bar.emoji))
+                    Column(Modifier.weight(1f)) {
+                        Text(bar.name, style = MaterialTheme.typography.titleMedium)
+                        LinearProgressIndicator(
+                            progress = { bar.score / 100f },
+                            color = domainBarColor(bar.colorKey),
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                        )
+                    }
+                    Text("训练起点 ${bar.score}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+            Text("🤖", style = enlargedVisualStyle(MaterialTheme.typography.headlineSmall, "🤖"))
+            Text(profile.narrative, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(10.dp))
+        Text("这不是考试分数，每个人都有自己的游戏路线。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private fun domainBarColor(colorKey: String): Color = when (colorKey) {
+    "coral" -> Color(0xFFFF6F61)
+    "sky" -> Color(0xFF4FC3F7)
+    "amber" -> Color(0xFFFFB74D)
+    "violet" -> Color(0xFFBA68C8)
+    "mint" -> Color(0xFF4DB6AC)
+    "blue" -> Color(0xFF64B5F6)
+    else -> Color(0xFF90A4AE)
 }
 
 @Composable

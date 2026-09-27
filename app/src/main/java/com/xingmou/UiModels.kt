@@ -102,7 +102,8 @@ data class ChildUiState(
     val isWorking: Boolean = false,
     val lastEvent: String = "等待开始",
     val curriculumMap: CurriculumMapUi = CurriculumMapUi(),
-    val curriculumPlayer: CurriculumPlayerUi = CurriculumPlayerUi()
+    val curriculumPlayer: CurriculumPlayerUi = CurriculumPlayerUi(),
+    val rainbowProfile: RainbowProfileUi = RainbowProfileUi()
 )
 
 data class CourseLevelUi(
@@ -132,6 +133,23 @@ data class CurriculumMapUi(
     val interest: String = "图片",
     val interestOptions: List<String> = listOf("图片", "动物", "交通", "生活用品"),
     val interestChosen: Boolean = false
+)
+
+/** 儿童端「我的彩虹画像」单域条：名称 + 表情 + 颜色键 + 训练起点分（0–100）。 */
+data class RainbowDomainUi(
+    val id: String,
+    val name: String,
+    val emoji: String,
+    val colorKey: String,
+    val score: Int
+)
+
+/** 儿童端「我的彩虹画像」数据画报：完成起点小测后生成，展示六域训练起点与鼓励叙述。 */
+data class RainbowProfileUi(
+    val present: Boolean = false,
+    val domainBars: List<RainbowDomainUi> = emptyList(),
+    val narrative: String = "",
+    val createdLabel: String = ""
 )
 
 /** 播放器：某一关内 5 个活动顺序作答；通过判定与结果均为内存态（不动 DB）。 */

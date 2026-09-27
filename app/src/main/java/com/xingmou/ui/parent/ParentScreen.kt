@@ -15,11 +15,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.xingmou.ParentUiState
@@ -29,6 +33,8 @@ import com.xingmou.ui.components.SectionSurface
 import com.xingmou.ui.components.StatusLine
 import com.xingmou.ui.components.domainBarColor
 import com.xingmou.ui.theme.Warning
+
+private enum class ParentSection { COMPANIONSHIP, DATA, WORKBENCH }
 
 @Composable
 fun ParentScreen(
@@ -45,42 +51,83 @@ fun ParentScreen(
     onSubmitFeedback: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text("家庭观察与支持", style = MaterialTheme.typography.headlineMedium)
-        Text("先记录事实，再从本地已审核知识中寻找可执行建议。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-        ParentProfileCard(state.profile)
-
-        HomeTaskPanel(state, onCompleteTask, onSkipTask, onPauseTask, onAdvanceDemo, onMoodChange, onFatigueChange, onFeedbackNoteChange, onSubmitFeedback)
-
-        SectionSurface(title = "本周家庭回顾", supporting = "只汇总当前儿童最近 7 天的本地记录。") {
-            StatusLine("任务完成率", state.weekCompletionRate)
-            Spacer(Modifier.height(8.dp))
-            StatusLine("状态变化", state.weekStatusSummary)
-            Text(state.weekSuggestion, modifier = Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val selectedSection = remember { mutableStateOf(ParentSection.COMPANIONSHIP) }
+    Row(modifier = modifier.fillMaxSize()) {
+        NavigationRail(modifier = Modifier.padding(top = 16.dp)) {
+            NavigationRailItem(
+                selected = selectedSection.value == ParentSection.COMPANIONSHIP,
+                onClick = { selectedSection.value = ParentSection.COMPANIONSHIP },
+                icon = { Text("伴", style = MaterialTheme.typography.titleLarge) },
+                label = { Text("陪练") }
+            )
+            NavigationRailItem(
+                selected = selectedSection.value == ParentSection.DATA,
+                onClick = { selectedSection.value = ParentSection.DATA },
+                icon = { Text("数", style = MaterialTheme.typography.titleLarge) },
+                label = { Text("数据") }
+            )
+            NavigationRailItem(
+                selected = selectedSection.value == ParentSection.WORKBENCH,
+                onClick = { selectedSection.value = ParentSection.WORKBENCH },
+                icon = { Text("台", style = MaterialTheme.typography.titleLarge) },
+                label = { Text("工作台") }
+            )
         }
-
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val wide = maxWidth >= 860.dp
-            if (wide) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    ObservationPanel(state, onQueryChange, onAsk, Modifier.weight(1.08f))
-                    ResultPanel(state, Modifier.weight(0.92f))
+        Column(
+            modifier = Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                when (selectedSection.value) {
+                    ParentSection.COMPANIONSHIP -> "家庭陪练"
+                    ParentSection.DATA -> "儿童数据"
+                    ParentSection.WORKBENCH -> "家长工作台"
+                },
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Text(
+                when (selectedSection.value) {
+                    ParentSection.COMPANIONSHIP -> "按今天的节奏陪孩子完成一个小任务。"
+                    ParentSection.DATA -> "查看能力画像和最近一周的家庭训练变化。"
+                    ParentSection.WORKBENCH -> "记录观察，并从本地已审核知识中寻找可执行建议。"
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            when (selectedSection.value) {
+                ParentSection.COMPANIONSHIP -> HomeTaskPanel(
+                    state, onCompleteTask, onSkipTask, onPauseTask, onAdvanceDemo,
+                    onMoodChange, onFatigueChange, onFeedbackNoteChange, onSubmitFeedback
+                )
+                ParentSection.DATA -> {
+                    ParentProfileCard(state.profile)
+                    SectionSurface(title = "本周家庭回顾", supporting = "只汇总当前儿童最近 7 天的本地记录。") {
+                        StatusLine("任务完成率", state.weekCompletionRate)
+                        Spacer(Modifier.height(8.dp))
+                        StatusLine("状态变化", state.weekStatusSummary)
+                        Text(state.weekSuggestion, modifier = Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    ObservationPanel(state, onQueryChange, onAsk, Modifier.fillMaxWidth())
-                    ResultPanel(state, Modifier.fillMaxWidth())
+                ParentSection.WORKBENCH -> {
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val wide = maxWidth >= 860.dp
+                        if (wide) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                ObservationPanel(state, onQueryChange, onAsk, Modifier.weight(1.08f))
+                                ResultPanel(state, Modifier.weight(0.92f))
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                ObservationPanel(state, onQueryChange, onAsk, Modifier.fillMaxWidth())
+                                ResultPanel(state, Modifier.fillMaxWidth())
+                            }
+                        }
+                    }
+                    SectionSurface(title = "边界说明", containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                        Text(SafeResponses.DISCLAIMER)
+                        Text("涉及诊疗判断、持续加重或紧急风险时，请联系有资质的专业人员。", modifier = Modifier.padding(top = 8.dp))
+                    }
                 }
             }
-        }
-
-        SectionSurface(title = "边界说明", containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-            Text(SafeResponses.DISCLAIMER)
-            Text("涉及诊疗判断、持续加重或紧急风险时，请联系有资质的专业人员。", modifier = Modifier.padding(top = 8.dp))
         }
     }
 }

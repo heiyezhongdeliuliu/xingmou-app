@@ -196,6 +196,7 @@ data class ParentUiState(
     val sources: List<String> = emptyList(),
     val recordCount: Int = 0,
     val riskLabel: String = "未评估",
+    val profile: RainbowProfileUi = RainbowProfileUi(),
     val isWorking: Boolean = false,
     val agentRunId: String? = null,
     val agentStatus: String = "本地待命",

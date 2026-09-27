@@ -29,7 +29,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.delay
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +50,7 @@ import com.xingmou.core.domain.BaselineStatus
 import com.xingmou.ui.components.SectionSurface
 import com.xingmou.ui.components.StatusLine
 import com.xingmou.ui.components.XiaoXingMark
+import com.xingmou.ui.components.domainBarColor
 import com.xingmou.ui.theme.Error
 import com.xingmou.R
 
@@ -480,16 +480,6 @@ private fun RainbowProfileCard(profile: RainbowProfileUi) {
         Spacer(Modifier.height(10.dp))
         Text("这不是考试分数，每个人都有自己的游戏路线。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-}
-
-private fun domainBarColor(colorKey: String): Color = when (colorKey) {
-    "coral" -> Color(0xFFFF6F61)
-    "sky" -> Color(0xFF4FC3F7)
-    "amber" -> Color(0xFFFFB74D)
-    "violet" -> Color(0xFFBA68C8)
-    "mint" -> Color(0xFF4DB6AC)
-    "blue" -> Color(0xFF64B5F6)
-    else -> Color(0xFF90A4AE)
 }
 
 @Composable

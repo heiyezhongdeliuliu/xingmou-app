@@ -79,6 +79,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -622,39 +623,101 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
         return "你在${strongest}小游戏里找到了自己的好办法！接下来我们会从轻松的${gentle}游戏开始，慢慢玩、慢慢进步，每一次尝试都值得一颗星星。"
     }
 
-    /** 从最新 ability_profiles 记录构建儿童端「我的彩虹画像」（本地安全叙述，不调用外网）。 */
+    private fun parseProfileScores(json: String): Map<String, Int> {
+        val raw = runCatching {
+            com.google.gson.Gson().fromJson<Map<String, Double>>(
+                json,
+                object : com.google.gson.reflect.TypeToken<Map<String, Double>>() {}.type
+            )
+        }.getOrNull() ?: emptyMap()
+        return raw.mapValues { it.value.toInt().coerceIn(0, 100) }
+    }
+
+    private fun buildRainbowProfileUi(profile: AbilityProfileEntity?, scores: Map<String, Int>): RainbowProfileUi {
+        if (profile == null) return RainbowProfileUi()
+        val createdLabel = runCatching {
+            SimpleDateFormat("yyyy年M月d日", Locale.CHINA).format(Date(profile.createdAt))
+        }.getOrDefault("最近")
+        return RainbowProfileUi(
+            present = true,
+            domainBars = listOf("A", "B", "C", "D", "E", "F").map { id ->
+                val domain = DomainCatalog.find(id)
+                RainbowDomainUi(
+                    id = id,
+                    name = domain?.name ?: id,
+                    emoji = domainEmoji(id),
+                    colorKey = domain?.displayColor ?: "slate",
+                    score = scores[id] ?: 0
+                )
+            },
+            narrative = childNarrative(scores),
+            createdLabel = createdLabel
+        )
+    }
+
+    /** 从最新 ability_profiles 记录构建彩虹画像；配了 API Key 时异步用模型生成叙述，失败则保留本地文案。 */
     private suspend fun loadRainbowProfile(scopedChildId: String) {
         val profile = database.abilityProfileDao().latestForChild(scopedChildId)
-        val ui = if (profile == null) {
-            RainbowProfileUi()
-        } else {
-            val rawScores = runCatching {
-                com.google.gson.Gson().fromJson<Map<String, Double>>(
-                    profile.scoresJson,
-                    object : com.google.gson.reflect.TypeToken<Map<String, Double>>() {}.type
-                )
-            }.getOrNull() ?: emptyMap()
-            val scores = rawScores.mapValues { it.value.toInt().coerceIn(0, 100) }
-            val createdLabel = runCatching {
-                SimpleDateFormat("yyyy年M月d日", Locale.CHINA).format(Date(profile.createdAt))
-            }.getOrDefault("最近")
-            RainbowProfileUi(
-                present = true,
-                domainBars = listOf("A", "B", "C", "D", "E", "F").map { id ->
-                    val domain = DomainCatalog.find(id)
-                    RainbowDomainUi(
-                        id = id,
-                        name = domain?.name ?: id,
-                        emoji = domainEmoji(id),
-                        colorKey = domain?.displayColor ?: "slate",
-                        score = scores[id] ?: 0
-                    )
-                },
-                narrative = childNarrative(scores),
-                createdLabel = createdLabel
-            )
+        val scores = if (profile == null) emptyMap() else parseProfileScores(profile.scoresJson)
+        val ui = buildRainbowProfileUi(profile, scores)
+        _uiState.update { it.copy(child = it.child.copy(rainbowProfile = ui), parent = it.parent.copy(profile = ui)) }
+        if (ui.present && apiKeyStore.isConfigured()) {
+            viewModelScope.launch {
+                val ai = fetchAiNarrative(scopedChildId, scores)
+                if (ai != null && activeChildId == scopedChildId) {
+                    val enriched = ui.copy(narrative = ai)
+                    _uiState.update {
+                        it.copy(child = it.child.copy(rainbowProfile = enriched), parent = it.parent.copy(profile = enriched))
+                    }
+                }
+            }
         }
-        _uiState.update { it.copy(child = it.child.copy(rainbowProfile = ui)) }
+    }
+
+    /** 配 API Key、已授权远程 AI 且存在绑定关系时，调用 DeepSeek 生成儿童友好叙述；否则返回 null 回退本地文案。 */
+    private suspend fun fetchAiNarrative(scopedChildId: String, scores: Map<String, Int>): String? {
+        val consent = database.consentDao().find(scopedChildId, "remote_ai")?.status.toConsentStatus()
+        val binding = database.childBindingDao().findActive(localUserId, scopedChildId)
+        if (!apiKeyStore.isConfigured() || consent != ConsentStatus.GRANTED || binding == null) return null
+        val entries = scores.entries.sortedByDescending { it.value }
+        if (entries.isEmpty()) return null
+        val strongest = DomainCatalog.find(entries.first().key)?.name ?: "游戏"
+        val gentle = DomainCatalog.find(entries.last().key)?.name ?: "游戏"
+        val systemPrompt = "你是儿童康复训练平台的安全文案助手。只写鼓励性、非诊断、非标签化文字，不比较儿童，不使用落后、缺陷、异常、失败、智力低等词，不承诺疗效。"
+        val userText = "六域训练起点分数：${com.google.gson.Gson().toJson(scores)}。相对强项：${strongest}；建议先练：${gentle}。请写给儿童本人，只输出 JSON 对象 {\"narrative\":\"一句60字以内中文\"}。"
+        val gateway = PolicyBackedModelGateway(
+            delegate = DirectDeepSeekGateway(apiKeyStore::get),
+            policy = GatewayPolicy(),
+            requestProvider = {
+                GatewayCallRequest(
+                    runId = newId("profile-narrative"),
+                    childId = scopedChildId,
+                    port = Port.PARENT.name.lowercase(),
+                    systemPrompt = "",
+                    userText = "",
+                    consentStatus = consent
+                )
+            }
+        )
+        val result = withTimeoutOrNull(15_000L) { gateway.complete(systemPrompt, userText) }
+        return result?.getOrNull()?.let { sanitizeNarrative(it) }
+    }
+
+    /** 二次安全过滤：剥掉 think/换行，抽取 JSON 的 narrative 字段，命中危险词则回退本地文案。 */
+    private fun sanitizeNarrative(raw: String): String? {
+        val unsafe = Regex("诊断|智商|智力低|缺陷|异常|落后|失败|不如|治愈|保证|病|障碍严重")
+        val cleaned = raw.replace(Regex("<think>[\\s\\S]*?</think>"), "")
+            .replace(Regex("[\\r\\n#*]"), "").trim().take(100)
+        if (cleaned.isBlank() || unsafe.containsMatchIn(cleaned)) return null
+        val extracted = runCatching {
+            val obj = com.google.gson.JsonParser.parseString(cleaned).asJsonObject
+            obj.get("narrative")?.takeIf { it.isJsonPrimitive }?.asString
+                ?: obj.get("text")?.takeIf { it.isJsonPrimitive }?.asString
+                ?: obj.get("content")?.takeIf { it.isJsonPrimitive }?.asString
+                ?: ""
+        }.getOrDefault("")
+        val final = if (extracted.isNotBlank()) extracted.take(100) else cleaned
+        return final.takeIf { it.isNotBlank() && !unsafe.containsMatchIn(it) }
     }
 
     private fun publishBaseline(isOpen: Boolean = _uiState.value.baseline.isOpen) {

@@ -23,9 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.xingmou.ParentUiState
+import com.xingmou.RainbowProfileUi
 import com.xingmou.core.safety.SafeResponses
 import com.xingmou.ui.components.SectionSurface
 import com.xingmou.ui.components.StatusLine
+import com.xingmou.ui.components.domainBarColor
 import com.xingmou.ui.theme.Warning
 
 @Composable
@@ -49,6 +51,8 @@ fun ParentScreen(
     ) {
         Text("家庭观察与支持", style = MaterialTheme.typography.headlineMedium)
         Text("先记录事实，再从本地已审核知识中寻找可执行建议。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        ParentProfileCard(state.profile)
 
         HomeTaskPanel(state, onCompleteTask, onSkipTask, onPauseTask, onAdvanceDemo, onMoodChange, onFatigueChange, onFeedbackNoteChange, onSubmitFeedback)
 
@@ -220,5 +224,40 @@ private fun ResultPanel(state: ParentUiState, modifier: Modifier) {
             HorizontalDivider(Modifier.padding(vertical = 16.dp))
             Text("运行记录：$runId", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+@Composable
+private fun ParentProfileCard(profile: RainbowProfileUi) {
+    if (!profile.present) {
+        SectionSurface(title = "平台初始能力画像", supporting = "儿童完成六题起点小测后自动生成。") {
+            Text("尚无画像记录。可先在儿童端完成起点小测。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+    SectionSurface(title = "平台初始能力画像", supporting = "生成于 ${profile.createdLabel}") {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            profile.domainBars.forEach { bar ->
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(bar.emoji, style = MaterialTheme.typography.headlineSmall)
+                    Column(Modifier.weight(1f)) {
+                        Text(bar.name, style = MaterialTheme.typography.titleMedium)
+                        LinearProgressIndicator(
+                            progress = { bar.score / 100f },
+                            color = domainBarColor(bar.colorKey),
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                        )
+                    }
+                    Text("训练起点 ${bar.score}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.Top) {
+            Text("🤖")
+            Text(profile.narrative, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(10.dp))
+        Text("平台原创训练起点画像，不等同于标准化量表或医学诊断。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

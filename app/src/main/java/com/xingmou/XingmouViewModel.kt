@@ -218,6 +218,7 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
             val child = database.childDao().findById(childId) ?: return@launch
             activeChildId = child.childId
             _uiState.update { it.copy(activeChildId = child.childId, activeChildAlias = child.alias,
+                baseline = it.baseline.copy(isOpen = false, isWorking = false),
                 professional = it.professional.copy(auditRuns = emptyList(), auditReplay = emptyList(),
                     auditSelectedRunId = null, auditMessage = "点击刷新查看当前儿童的 Agent 运行记录。")) }
             loadConsentState(child.childId)
@@ -553,8 +554,11 @@ class XingmouViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun loadBaseline(child: ChildEntity) {
+        // 保存答题结果会触发 childDao 观察流再次加载儿童；保留当前打开状态，
+        // 避免答完一题后被数据库刷新折叠成“继续基线”。切换儿童时由 selectChild 主动关闭。
+        val keepOpen = _uiState.value.baseline.isOpen
         baselineSession = baselineEngine.fromJson(child.baselineJson) ?: BaselineSession()
-        publishBaseline(isOpen = false)
+        publishBaseline(isOpen = keepOpen)
     }
 
     private suspend fun loadCourseProgress(childId: String) {

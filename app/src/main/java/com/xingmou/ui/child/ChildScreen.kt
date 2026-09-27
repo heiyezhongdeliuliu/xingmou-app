@@ -301,7 +301,7 @@ private fun StimulusCard(stimulus: String, label: String) {
 /** Emoji/图形素材需要比普通文字更大，方便儿童在模拟器和实际设备上观察。 */
 private fun enlargedVisualStyle(base: androidx.compose.ui.text.TextStyle, value: String): androidx.compose.ui.text.TextStyle =
     if (containsVisualMaterial(value)) {
-        base.copy(fontSize = (base.fontSize.value * 5f).sp)
+        base.copy(fontSize = (base.fontSize.value * 2.5f).sp)
     } else {
         base
     }
@@ -519,7 +519,7 @@ private fun BaselineCard(
                             OutlinedButton(
                                 onClick = { onAnswer(index) },
                                 enabled = !state.isWorking,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = if (containsVisualMaterial(option)) 180.dp else 56.dp).semantics { contentDescription = "回答起点小测：$option" }
+                                modifier = Modifier.fillMaxWidth().heightIn(min = if (containsVisualMaterial(option)) 120.dp else 56.dp).semantics { contentDescription = "回答起点小测：$option" }
                             ) { Text(option, style = enlargedVisualStyle(MaterialTheme.typography.titleMedium, option)) }
                             Spacer(Modifier.height(8.dp))
                         }
@@ -557,7 +557,7 @@ private fun SettingRow(title: String, supporting: String, checked: Boolean, onCh
 private fun ChoiceButton(label: String, optionIndex: Int, onChoice: (Int) -> Unit, modifier: Modifier, enabled: Boolean) {
     OutlinedButton(
         onClick = { onChoice(optionIndex) },
-        modifier = modifier.heightIn(min = if (containsVisualMaterial(label)) 180.dp else 76.dp).semantics { contentDescription = "选择$label" },
+        modifier = modifier.heightIn(min = if (containsVisualMaterial(label)) 120.dp else 76.dp).semantics { contentDescription = "选择$label" },
         enabled = enabled
     ) {
         Text(label, style = enlargedVisualStyle(MaterialTheme.typography.titleLarge, label))
